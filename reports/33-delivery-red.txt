@@ -1,0 +1,34 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________________ test_initial_migration_can_upgrade_and_repeat _________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-30/test_initial_migration_can_upg0')
+
+    def test_initial_migration_can_upgrade_and_repeat(tmp_path):
+>       assert (ROOT/'alembic.ini').is_file()
+E       AssertionError: assert False
+E        +  where False = is_file()
+E        +    where is_file = (PosixPath('/mnt/data/meeting-build/nodeskclaw-meeting') / 'alembic.ini').is_file
+
+tests/contracts/test_delivery_structure.py:11: AssertionError
+_______________ test_monorepo_integration_files_are_real_modules _______________
+
+    def test_monorepo_integration_files_are_real_modules():
+        for name in ('integration/backend/app/api/meeting_identity.py','integration/portal/src/features/meeting/routes.ts',
+                     'integration/portal/src/features/meeting/MeetingConsole.vue','scripts/integrate.py','README.md','deploy/compose.yaml'):
+>           assert (ROOT/name).is_file(),name
+E           AssertionError: integration/backend/app/api/meeting_identity.py
+E           assert False
+E            +  where False = is_file()
+E            +    where is_file = (PosixPath('/mnt/data/meeting-build/nodeskclaw-meeting') / 'integration/backend/app/api/meeting_identity.py').is_file
+
+tests/contracts/test_delivery_structure.py:24: AssertionError
+=========================== short test summary info ============================
+FAILED tests/contracts/test_delivery_structure.py::test_initial_migration_can_upgrade_and_repeat - AssertionError: assert False
+ +  where False = is_file()
+ +    where is_file = (PosixPath('/mnt/data/meeting-build/nodeskclaw-meeting') / 'alembic.ini').is_file
+FAILED tests/contracts/test_delivery_structure.py::test_monorepo_integration_files_are_real_modules - AssertionError: integration/backend/app/api/meeting_identity.py
+assert False
+ +  where False = is_file()
+ +    where is_file = (PosixPath('/mnt/data/meeting-build/nodeskclaw-meeting') / 'integration/backend/app/api/meeting_identity.py').is_file
+2 failed in 0.08s

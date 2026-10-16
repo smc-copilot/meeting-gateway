@@ -1,0 +1,66 @@
+# Apply only after supplying meeting-config, meeting-secrets and a shared RWX PVC.
+# A migration Job is executed ONCE before deploying API and Worker, not once per replica.
+apiVersion: batch/v1
+kind: Job
+metadata: {name: meeting-migrate-v1}
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector: {kubernetes.io/arch: amd64}
+      containers:
+        - name: migrate
+          image: YOUR_REGISTRY/nodeskclaw-meeting:1.0.0rc1
+          command: [alembic, upgrade, head]
+          envFrom: [{configMapRef: {name: meeting-config}}, {secretRef: {name: meeting-secrets}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: nodeskclaw-meeting}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: nodeskclaw-meeting}}
+  template:
+    metadata: {labels: {app: nodeskclaw-meeting}}
+    spec:
+      nodeSelector: {kubernetes.io/arch: amd64}
+      securityContext: {runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001}
+      containers:
+        - name: api
+          image: YOUR_REGISTRY/nodeskclaw-meeting:1.0.0rc1
+          ports: [{containerPort: 8000}]
+          envFrom: [{configMapRef: {name: meeting-config}}, {secretRef: {name: meeting-secrets}}]
+          readinessProbe: {httpGet: {path: /health/ready, port: 8000, httpHeaders: [{name: Host, value: meeting-gateway.example.invalid}]}, periodSeconds: 15}
+          livenessProbe: {httpGet: {path: /health/live, port: 8000, httpHeaders: [{name: Host, value: meeting-gateway.example.invalid}]}, periodSeconds: 30}
+          resources: {requests: {cpu: 250m, memory: 256Mi}, limits: {cpu: '2', memory: 1Gi}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true}
+          volumeMounts: [{name: private, mountPath: /data}, {name: temporary, mountPath: /tmp}]
+      volumes: [{name: private, persistentVolumeClaim: {claimName: meeting-private-rwx}}, {name: temporary, emptyDir: {}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: nodeskclaw-meeting-worker}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: nodeskclaw-meeting-worker}}
+  template:
+    metadata: {labels: {app: nodeskclaw-meeting-worker}}
+    spec:
+      nodeSelector: {kubernetes.io/arch: amd64}
+      securityContext: {runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001}
+      containers:
+        - name: worker
+          image: YOUR_REGISTRY/nodeskclaw-meeting:1.0.0rc1
+          command: [python, -m, app.worker]
+          envFrom: [{configMapRef: {name: meeting-config}}, {secretRef: {name: meeting-secrets}}]
+          resources: {requests: {cpu: 250m, memory: 256Mi}, limits: {cpu: '2', memory: 1Gi}}
+          volumeMounts: [{name: private, mountPath: /data}]
+      volumes: [{name: private, persistentVolumeClaim: {claimName: meeting-private-rwx}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: nodeskclaw-meeting}
+spec:
+  selector: {app: nodeskclaw-meeting}
+  ports: [{port: 8000, targetPort: 8000}]

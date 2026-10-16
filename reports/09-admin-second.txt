@@ -1,0 +1,277 @@
+.FFFFFFF.                                                                [100%]
+=================================== FAILURES ===================================
+________________ test_config_encrypts_and_never_returns_secrets ________________
+
+rt = <app.runtime.Runtime object at 0x7f578a9391d0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_config_encrypts_and_never_returns_secrets(rt,human,enterprise_app_body):
+        await rt.admin.bootstrap(human)
+>       app = await rt.admin.create_application(human,enterprise_app_body)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:34: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f578b88a210>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def create_application(self,principal,body:ApplicationCreate):
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            await self.require(s,principal,'meeting.application.manage')
+            duplicate=await s.scalar(select(Application).where(Application.org_id==principal.org_id,
+                Application.environment==body.environment,Application.sdk_id==body.sdk_id,Application.deleted_at.is_(None)))
+            if duplicate: raise MeetingError('CONFLICT',409)
+            app=Application(org_id=principal.org_id,name=body.name,application_type=body.application_type,
+                environment=body.environment,tencent_corp_id=body.tencent_corp_id,sdk_id=body.sdk_id,data_scope=body.data_scope,
+                receiver_id=str(uuid.uuid4()),allowed_open_corp_ids=body.allowed_open_corp_ids,enabled=True)
+            s.add(app);await s.flush()
+            value={'secret_id':body.secret_id,'secret_key':body.secret_key} if body.application_type=='ENTERPRISE_AKSK' else {'secret':body.oauth_secret}
+            await self.save_secret(s,app,'AKSK' if body.application_type=='ENTERPRISE_AKSK' else 'OAUTH_APP',value)
+            await self.save_secret(s,app,'WEBHOOK',{'token':body.webhook_token,'encoding_key':body.webhook_encoding_key})
+            await self.rt.policy.bump(s,principal.org_id)
+>           record(s,principal,'application.created',app.id)
+E           TypeError: record() takes 3 positional arguments but 4 were given
+
+app/services/admin_service.py:117: TypeError
+_____________ test_employee_identity_conflict_and_tenant_isolation _____________
+
+rt = <app.runtime.Runtime object at 0x7f578a939950>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_employee_identity_conflict_and_tenant_isolation(rt,human,enterprise_app_body):
+>       a,c = await prepare(rt,human,enterprise_app_body)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_admin_connections.py:14: in prepare
+    a = await rt.admin.create_application(human, enterprise_app_body)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f578b88a350>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def create_application(self,principal,body:ApplicationCreate):
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            await self.require(s,principal,'meeting.application.manage')
+            duplicate=await s.scalar(select(Application).where(Application.org_id==principal.org_id,
+                Application.environment==body.environment,Application.sdk_id==body.sdk_id,Application.deleted_at.is_(None)))
+            if duplicate: raise MeetingError('CONFLICT',409)
+            app=Application(org_id=principal.org_id,name=body.name,application_type=body.application_type,
+                environment=body.environment,tencent_corp_id=body.tencent_corp_id,sdk_id=body.sdk_id,data_scope=body.data_scope,
+                receiver_id=str(uuid.uuid4()),allowed_open_corp_ids=body.allowed_open_corp_ids,enabled=True)
+            s.add(app);await s.flush()
+            value={'secret_id':body.secret_id,'secret_key':body.secret_key} if body.application_type=='ENTERPRISE_AKSK' else {'secret':body.oauth_secret}
+            await self.save_secret(s,app,'AKSK' if body.application_type=='ENTERPRISE_AKSK' else 'OAUTH_APP',value)
+            await self.save_secret(s,app,'WEBHOOK',{'token':body.webhook_token,'encoding_key':body.webhook_encoding_key})
+            await self.rt.policy.bump(s,principal.org_id)
+>           record(s,principal,'application.created',app.id)
+E           TypeError: record() takes 3 positional arguments but 4 were given
+
+app/services/admin_service.py:117: TypeError
+________________ test_enterprise_cannot_claim_unbound_operator _________________
+
+rt = <app.runtime.Runtime object at 0x7f578a8ad5b0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_enterprise_cannot_claim_unbound_operator(rt,human,enterprise_app_body):
+        await rt.admin.bootstrap(human)
+>       app=await rt.admin.create_application(human,enterprise_app_body)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f578a8aefd0>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def create_application(self,principal,body:ApplicationCreate):
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            await self.require(s,principal,'meeting.application.manage')
+            duplicate=await s.scalar(select(Application).where(Application.org_id==principal.org_id,
+                Application.environment==body.environment,Application.sdk_id==body.sdk_id,Application.deleted_at.is_(None)))
+            if duplicate: raise MeetingError('CONFLICT',409)
+            app=Application(org_id=principal.org_id,name=body.name,application_type=body.application_type,
+                environment=body.environment,tencent_corp_id=body.tencent_corp_id,sdk_id=body.sdk_id,data_scope=body.data_scope,
+                receiver_id=str(uuid.uuid4()),allowed_open_corp_ids=body.allowed_open_corp_ids,enabled=True)
+            s.add(app);await s.flush()
+            value={'secret_id':body.secret_id,'secret_key':body.secret_key} if body.application_type=='ENTERPRISE_AKSK' else {'secret':body.oauth_secret}
+            await self.save_secret(s,app,'AKSK' if body.application_type=='ENTERPRISE_AKSK' else 'OAUTH_APP',value)
+            await self.save_secret(s,app,'WEBHOOK',{'token':body.webhook_token,'encoding_key':body.webhook_encoding_key})
+            await self.rt.policy.bump(s,principal.org_id)
+>           record(s,principal,'application.created',app.id)
+E           TypeError: record() takes 3 positional arguments but 4 were given
+
+app/services/admin_service.py:117: TypeError
+_________ test_oauth_state_single_use_and_confirmation_bound_to_owner __________
+
+rt = <app.runtime.Runtime object at 0x7f578a8afce0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_oauth_state_single_use_and_confirmation_bound_to_owner(rt,human,enterprise_app_body):
+        await rt.admin.bootstrap(human)
+        data=enterprise_app_body.model_dump()
+        data.update(application_type='THIRD_PARTY_OAUTH',sdk_id='oauth-sdk',data_scope='user',secret_id=None,secret_key=None,
+                    oauth_secret='oauth-client-test-secret',allowed_open_corp_ids=['open-corp'])
+>       app=await rt.admin.create_application(human,ApplicationCreate(**data))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f578a831480>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+body = ApplicationCreate(name='Synthetic enterprise', application_type='THIRD_PARTY_OAUTH', environment='test', tencent_corp_...ncoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=['open-corp'], reason='fixture setup')
+
+    async def create_application(self,principal,body:ApplicationCreate):
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            await self.require(s,principal,'meeting.application.manage')
+            duplicate=await s.scalar(select(Application).where(Application.org_id==principal.org_id,
+                Application.environment==body.environment,Application.sdk_id==body.sdk_id,Application.deleted_at.is_(None)))
+            if duplicate: raise MeetingError('CONFLICT',409)
+            app=Application(org_id=principal.org_id,name=body.name,application_type=body.application_type,
+                environment=body.environment,tencent_corp_id=body.tencent_corp_id,sdk_id=body.sdk_id,data_scope=body.data_scope,
+                receiver_id=str(uuid.uuid4()),allowed_open_corp_ids=body.allowed_open_corp_ids,enabled=True)
+            s.add(app);await s.flush()
+            value={'secret_id':body.secret_id,'secret_key':body.secret_key} if body.application_type=='ENTERPRISE_AKSK' else {'secret':body.oauth_secret}
+            await self.save_secret(s,app,'AKSK' if body.application_type=='ENTERPRISE_AKSK' else 'OAUTH_APP',value)
+            await self.save_secret(s,app,'WEBHOOK',{'token':body.webhook_token,'encoding_key':body.webhook_encoding_key})
+            await self.rt.policy.bump(s,principal.org_id)
+>           record(s,principal,'application.created',app.id)
+E           TypeError: record() takes 3 positional arguments but 4 were given
+
+app/services/admin_service.py:117: TypeError
+_________________ test_oauth_foreign_corporation_not_activated _________________
+
+rt = <app.runtime.Runtime object at 0x7f578a877d10>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_oauth_foreign_corporation_not_activated(rt,human,enterprise_app_body):
+        await rt.admin.bootstrap(human)
+        data=enterprise_app_body.model_dump();data.update(application_type='THIRD_PARTY_OAUTH',sdk_id='oauth-sdk',data_scope='user',
+            secret_id=None,secret_key=None,oauth_secret='test',allowed_open_corp_ids=['different-corp'])
+>       a=await rt.admin.create_application(human,ApplicationCreate(**data))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:87: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f578a7296d0>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+body = ApplicationCreate(name='Synthetic enterprise', application_type='THIRD_PARTY_OAUTH', environment='test', tencent_corp_...ng_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=['different-corp'], reason='fixture setup')
+
+    async def create_application(self,principal,body:ApplicationCreate):
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            await self.require(s,principal,'meeting.application.manage')
+            duplicate=await s.scalar(select(Application).where(Application.org_id==principal.org_id,
+                Application.environment==body.environment,Application.sdk_id==body.sdk_id,Application.deleted_at.is_(None)))
+            if duplicate: raise MeetingError('CONFLICT',409)
+            app=Application(org_id=principal.org_id,name=body.name,application_type=body.application_type,
+                environment=body.environment,tencent_corp_id=body.tencent_corp_id,sdk_id=body.sdk_id,data_scope=body.data_scope,
+                receiver_id=str(uuid.uuid4()),allowed_open_corp_ids=body.allowed_open_corp_ids,enabled=True)
+            s.add(app);await s.flush()
+            value={'secret_id':body.secret_id,'secret_key':body.secret_key} if body.application_type=='ENTERPRISE_AKSK' else {'secret':body.oauth_secret}
+            await self.save_secret(s,app,'AKSK' if body.application_type=='ENTERPRISE_AKSK' else 'OAUTH_APP',value)
+            await self.save_secret(s,app,'WEBHOOK',{'token':body.webhook_token,'encoding_key':body.webhook_encoding_key})
+            await self.rt.policy.bump(s,principal.org_id)
+>           record(s,principal,'application.created',app.id)
+E           TypeError: record() takes 3 positional arguments but 4 were given
+
+app/services/admin_service.py:117: TypeError
+___________ test_sts_early_callback_waits_for_request_and_newer_wins ___________
+
+rt = <app.runtime.Runtime object at 0x7f578a7518c0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_sts_early_callback_waits_for_request_and_newer_wins(rt,human,enterprise_app_body):
+>       a,c=await prepare(rt,human,enterprise_app_body)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:96: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_admin_connections.py:14: in prepare
+    a = await rt.admin.create_application(human, enterprise_app_body)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f578a752f10>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def create_application(self,principal,body:ApplicationCreate):
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            await self.require(s,principal,'meeting.application.manage')
+            duplicate=await s.scalar(select(Application).where(Application.org_id==principal.org_id,
+                Application.environment==body.environment,Application.sdk_id==body.sdk_id,Application.deleted_at.is_(None)))
+            if duplicate: raise MeetingError('CONFLICT',409)
+            app=Application(org_id=principal.org_id,name=body.name,application_type=body.application_type,
+                environment=body.environment,tencent_corp_id=body.tencent_corp_id,sdk_id=body.sdk_id,data_scope=body.data_scope,
+                receiver_id=str(uuid.uuid4()),allowed_open_corp_ids=body.allowed_open_corp_ids,enabled=True)
+            s.add(app);await s.flush()
+            value={'secret_id':body.secret_id,'secret_key':body.secret_key} if body.application_type=='ENTERPRISE_AKSK' else {'secret':body.oauth_secret}
+            await self.save_secret(s,app,'AKSK' if body.application_type=='ENTERPRISE_AKSK' else 'OAUTH_APP',value)
+            await self.save_secret(s,app,'WEBHOOK',{'token':body.webhook_token,'encoding_key':body.webhook_encoding_key})
+            await self.rt.policy.bump(s,principal.org_id)
+>           record(s,principal,'application.created',app.id)
+E           TypeError: record() takes 3 positional arguments but 4 were given
+
+app/services/admin_service.py:117: TypeError
+________ test_client_scopes_and_grants_need_explicit_approved_ingestion ________
+
+rt = <app.runtime.Runtime object at 0x7f578a66caf0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_client_scopes_and_grants_need_explicit_approved_ingestion(rt,human,enterprise_app_body):
+>       a,c=await prepare(rt,human,enterprise_app_body)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:110: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_admin_connections.py:14: in prepare
+    a = await rt.admin.create_application(human, enterprise_app_body)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f578a66de10>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...e', 'meeting.diagnostics.run'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def create_application(self,principal,body:ApplicationCreate):
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            await self.require(s,principal,'meeting.application.manage')
+            duplicate=await s.scalar(select(Application).where(Application.org_id==principal.org_id,
+                Application.environment==body.environment,Application.sdk_id==body.sdk_id,Application.deleted_at.is_(None)))
+            if duplicate: raise MeetingError('CONFLICT',409)
+            app=Application(org_id=principal.org_id,name=body.name,application_type=body.application_type,
+                environment=body.environment,tencent_corp_id=body.tencent_corp_id,sdk_id=body.sdk_id,data_scope=body.data_scope,
+                receiver_id=str(uuid.uuid4()),allowed_open_corp_ids=body.allowed_open_corp_ids,enabled=True)
+            s.add(app);await s.flush()
+            value={'secret_id':body.secret_id,'secret_key':body.secret_key} if body.application_type=='ENTERPRISE_AKSK' else {'secret':body.oauth_secret}
+            await self.save_secret(s,app,'AKSK' if body.application_type=='ENTERPRISE_AKSK' else 'OAUTH_APP',value)
+            await self.save_secret(s,app,'WEBHOOK',{'token':body.webhook_token,'encoding_key':body.webhook_encoding_key})
+            await self.rt.policy.bump(s,principal.org_id)
+>           record(s,principal,'application.created',app.id)
+E           TypeError: record() takes 3 positional arguments but 4 were given
+
+app/services/admin_service.py:117: TypeError
+=========================== short test summary info ============================
+FAILED tests/integration/test_admin_connections.py::test_config_encrypts_and_never_returns_secrets - TypeError: record() takes 3 positional arguments but 4 were given
+FAILED tests/integration/test_admin_connections.py::test_employee_identity_conflict_and_tenant_isolation - TypeError: record() takes 3 positional arguments but 4 were given
+FAILED tests/integration/test_admin_connections.py::test_enterprise_cannot_claim_unbound_operator - TypeError: record() takes 3 positional arguments but 4 were given
+FAILED tests/integration/test_admin_connections.py::test_oauth_state_single_use_and_confirmation_bound_to_owner - TypeError: record() takes 3 positional arguments but 4 were given
+FAILED tests/integration/test_admin_connections.py::test_oauth_foreign_corporation_not_activated - TypeError: record() takes 3 positional arguments but 4 were given
+FAILED tests/integration/test_admin_connections.py::test_sts_early_callback_waits_for_request_and_newer_wins - TypeError: record() takes 3 positional arguments but 4 were given
+FAILED tests/integration/test_admin_connections.py::test_client_scopes_and_grants_need_explicit_approved_ingestion - TypeError: record() takes 3 positional arguments but 4 were given
+7 failed, 2 passed in 3.63s

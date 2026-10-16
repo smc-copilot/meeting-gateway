@@ -1,0 +1,36 @@
+# HTTPS is terminated here. Replace the host, certificate paths and INTERNAL_CIDR.
+# access_log excludes query strings, OAuth codes, download tickets and request bodies.
+log_format meeting_safe '$time_iso8601 $remote_addr $status $request_method $request_time';
+server {
+    listen 443 ssl;
+    server_name meeting-gateway.example.invalid;
+    ssl_certificate /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/privkey.pem;
+    access_log /var/log/nginx/meeting-access.log meeting_safe;
+    error_log /var/log/nginx/meeting-error.log warn;
+    client_max_body_size 1m;
+    client_body_timeout 10s;
+    add_header Referrer-Policy no-referrer always;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_http_version 1.1;
+    proxy_read_timeout 90s;
+    proxy_request_buffering on;
+    location /callbacks/tencent/ {
+        error_log /dev/null crit; # Never log OAuth query strings on upstream errors.
+        proxy_pass http://127.0.0.1:4522;
+        proxy_read_timeout 10s;
+    }
+    location /oauth/ { error_log /dev/null crit; proxy_pass http://127.0.0.1:4522; }
+    location /.well-known/ { proxy_pass http://127.0.0.1:4522; }
+    # REST / MCP are for your internal networks or VPN, not anonymously public.
+    location / {
+        allow 10.0.0.0/8;  # Replace with the actual internal ingress source networks.
+        allow 127.0.0.1;
+        deny all;
+        proxy_buffering off;
+        proxy_pass http://127.0.0.1:4522;
+    }
+    location /metrics { deny all; }
+}

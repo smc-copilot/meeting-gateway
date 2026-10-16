@@ -1,0 +1,73 @@
+.FF.....                                                                 [100%]
+=================================== FAILURES ===================================
+____________ test_cache_read_still_checks_current_origin_and_action ____________
+
+rt = <app.runtime.Runtime object at 0x7fc679e15f90>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_cache_read_still_checks_current_origin_and_action(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        rt._provider.response={'minutes':{'meeting_minute':{'minute':'# Meeting notes','todo':''}}}
+>       asset=await rt.content.fetch(p,'record1','minutes')
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_resources_jobs.py:56: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/content_service.py:106: in fetch
+    await self.rt.events.publish('meeting.asset.ready',m.org_id,asset.id,{'asset_type':kind})
+          ^^^^^^^^^^^^^^
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fc679e15f90>
+
+    @cached_property
+    def events(self):
+>       from app.services.event_service import EventService
+E       ModuleNotFoundError: No module named 'app.services.event_service'
+
+app/runtime.py:72: ModuleNotFoundError
+__________________ test_transcript_full_inclusive_pagination ___________________
+
+rt = <app.runtime.Runtime object at 0x7fc679e16710>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_transcript_full_inclusive_pagination(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        def paragraph(pid,text):return {'pid':pid,'sentences':[{'words':[{'text':text}]}]}
+        one=paragraph('opaque-a','Hello');two=paragraph('opaque-b','World');three=paragraph('opaque-c','Done')
+        def response(operation,kwargs):
+            if operation=='transcript':
+                pid=kwargs['query'].get('pid','0')
+                return {'more':True,'minutes':{'paragraphs':[one,two]}} if pid=='0' else {'more':False,'minutes':{'paragraphs':[two,three]}}
+            return {}
+        rt._provider.response=response
+>       asset=await rt.content.fetch(p,'record1','transcript')
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_resources_jobs.py:74: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/content_service.py:106: in fetch
+    await self.rt.events.publish('meeting.asset.ready',m.org_id,asset.id,{'asset_type':kind})
+          ^^^^^^^^^^^^^^
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fc679e16710>
+
+    @cached_property
+    def events(self):
+>       from app.services.event_service import EventService
+E       ModuleNotFoundError: No module named 'app.services.event_service'
+
+app/runtime.py:72: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_resources_jobs.py::test_cache_read_still_checks_current_origin_and_action - ModuleNotFoundError: No module named 'app.services.event_service'
+FAILED tests/integration/test_resources_jobs.py::test_transcript_full_inclusive_pagination - ModuleNotFoundError: No module named 'app.services.event_service'
+2 failed, 6 passed in 3.86s

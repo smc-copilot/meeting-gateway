@@ -1,0 +1,445 @@
+{
+  "protocol_version": "2025-11-25",
+  "transport": "streamable-http",
+  "tools": [
+    {
+      "name": "meeting_list",
+      "description": "查询当前授权范围内已同步的会议；不代表企业全量历史。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 20,
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cursor"
+          },
+          "query": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Query",
+            "type": "string"
+          },
+          "connection_ref": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Connection Ref"
+          }
+        },
+        "title": "MeetingList",
+        "type": "object"
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "meeting_get",
+      "description": "查看一场有权限访问的会议元数据。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "meeting_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Meeting Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "meeting_id"
+        ],
+        "title": "MeetingGet",
+        "type": "object"
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "meeting_transcript_read",
+      "description": "按已验证内容版本分页读取腾讯原生转写。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "recording_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Recording Id",
+            "type": "string"
+          },
+          "limit": {
+            "default": 100,
+            "maximum": 500,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cursor"
+          }
+        },
+        "required": [
+          "recording_id"
+        ],
+        "title": "TranscriptRead",
+        "type": "object"
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "meeting_minutes_read",
+      "description": "读取腾讯原生纪要，保留原始模型和格式。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "recording_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Recording Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recording_id"
+        ],
+        "title": "MinutesRead",
+        "type": "object"
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "meeting_download_request",
+      "description": "申请绑定当前主体的原生资料下载许可；下载仍须同一主体认证。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "purpose": {
+            "maxLength": 128,
+            "minLength": 3,
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id",
+          "purpose"
+        ],
+        "title": "Download",
+        "type": "object"
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "meeting_create_prepare",
+      "description": "准备会议创建。可信员工客户端直接入队；其他客户端进入人工确认，确认由原业务系统的员工完成，智能体不能确认。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "subject": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          },
+          "start_at": {
+            "format": "date-time",
+            "title": "Start At",
+            "type": "string"
+          },
+          "end_at": {
+            "format": "date-time",
+            "title": "End At",
+            "type": "string"
+          },
+          "host_member_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Host Member Id",
+            "type": "string"
+          },
+          "invitee_member_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 300,
+            "title": "Invitee Member Ids",
+            "type": "array"
+          },
+          "connection_ref": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Connection Ref",
+            "type": "string"
+          },
+          "business_ref": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Business Ref"
+          },
+          "auto_record_type": {
+            "default": "NONE",
+            "enum": [
+              "NONE",
+              "CLOUD"
+            ],
+            "title": "Auto Record Type",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Idempotency Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "start_at",
+          "end_at",
+          "host_member_id",
+          "connection_ref",
+          "idempotency_key"
+        ],
+        "title": "Create",
+        "type": "object"
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "meeting_operation_status",
+      "description": "查看当前调用方自己的创建操作或查询作业。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "operation_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Operation Id"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Job Id"
+          }
+        },
+        "title": "Status",
+        "type": "object"
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "meeting_source_query",
+      "description": "按会议 ID 或当前员工自己的时间窗向腾讯查询。不能查询其他员工，也不能改用企业密钥。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "selection": {
+            "enum": [
+              "MEETING_ID",
+              "USER_WINDOW",
+              "CORP_WINDOW"
+            ],
+            "title": "Selection",
+            "type": "string"
+          },
+          "connection_ref": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Connection Ref",
+            "type": "string"
+          },
+          "meeting_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Meeting Id"
+          },
+          "target_member_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target Member Id"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start At"
+          },
+          "end_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End At"
+          }
+        },
+        "required": [
+          "selection",
+          "connection_ref"
+        ],
+        "title": "SourceQuery",
+        "type": "object"
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "idempotentHint": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,245 @@
+FFFFFFFFF                                                                [100%]
+=================================== FAILURES ===================================
+_________________ test_bootstrap_once_and_no_implicit_content __________________
+
+rt = <app.runtime.Runtime object at 0x7fe14cdb2660>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def test_bootstrap_once_and_no_implicit_content(rt,human):
+>       result = await rt.admin.bootstrap(human)
+                       ^^^^^^^^
+
+tests/integration/test_admin_connections.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fe14cdb2660>
+
+    @cached_property
+    def admin(self):
+>       from app.services.admin_service import AdminService
+E       ModuleNotFoundError: No module named 'app.services.admin_service'
+
+app/runtime.py:34: ModuleNotFoundError
+________________ test_config_encrypts_and_never_returns_secrets ________________
+
+rt = <app.runtime.Runtime object at 0x7fe14ccc7d90>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_config_encrypts_and_never_returns_secrets(rt,human,enterprise_app_body):
+>       await rt.admin.bootstrap(human)
+              ^^^^^^^^
+
+tests/integration/test_admin_connections.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fe14ccc7d90>
+
+    @cached_property
+    def admin(self):
+>       from app.services.admin_service import AdminService
+E       ModuleNotFoundError: No module named 'app.services.admin_service'
+
+app/runtime.py:34: ModuleNotFoundError
+_____________ test_employee_identity_conflict_and_tenant_isolation _____________
+
+rt = <app.runtime.Runtime object at 0x7fe14cab9a90>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_employee_identity_conflict_and_tenant_isolation(rt,human,enterprise_app_body):
+>       a,c = await prepare(rt,human,enterprise_app_body)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_admin_connections.py:13: in prepare
+    await rt.admin.bootstrap(human)
+          ^^^^^^^^
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fe14cab9a90>
+
+    @cached_property
+    def admin(self):
+>       from app.services.admin_service import AdminService
+E       ModuleNotFoundError: No module named 'app.services.admin_service'
+
+app/runtime.py:34: ModuleNotFoundError
+________________ test_enterprise_cannot_claim_unbound_operator _________________
+
+rt = <app.runtime.Runtime object at 0x7fe14cb5fce0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_enterprise_cannot_claim_unbound_operator(rt,human,enterprise_app_body):
+>       await rt.admin.bootstrap(human)
+              ^^^^^^^^
+
+tests/integration/test_admin_connections.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fe14cb5fce0>
+
+    @cached_property
+    def admin(self):
+>       from app.services.admin_service import AdminService
+E       ModuleNotFoundError: No module named 'app.services.admin_service'
+
+app/runtime.py:34: ModuleNotFoundError
+_________ test_oauth_state_single_use_and_confirmation_bound_to_owner __________
+
+rt = <app.runtime.Runtime object at 0x7fe14cac2190>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_oauth_state_single_use_and_confirmation_bound_to_owner(rt,human,enterprise_app_body):
+>       await rt.admin.bootstrap(human)
+              ^^^^^^^^
+
+tests/integration/test_admin_connections.py:62: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fe14cac2190>
+
+    @cached_property
+    def admin(self):
+>       from app.services.admin_service import AdminService
+E       ModuleNotFoundError: No module named 'app.services.admin_service'
+
+app/runtime.py:34: ModuleNotFoundError
+_________________ test_oauth_foreign_corporation_not_activated _________________
+
+rt = <app.runtime.Runtime object at 0x7fe14ca739b0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_oauth_foreign_corporation_not_activated(rt,human,enterprise_app_body):
+>       await rt.admin.bootstrap(human)
+              ^^^^^^^^
+
+tests/integration/test_admin_connections.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fe14ca739b0>
+
+    @cached_property
+    def admin(self):
+>       from app.services.admin_service import AdminService
+E       ModuleNotFoundError: No module named 'app.services.admin_service'
+
+app/runtime.py:34: ModuleNotFoundError
+___________ test_sts_early_callback_waits_for_request_and_newer_wins ___________
+
+rt = <app.runtime.Runtime object at 0x7fe14cbe7680>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_sts_early_callback_waits_for_request_and_newer_wins(rt,human,enterprise_app_body):
+>       a,c=await prepare(rt,human,enterprise_app_body)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:96: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_admin_connections.py:13: in prepare
+    await rt.admin.bootstrap(human)
+          ^^^^^^^^
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fe14cbe7680>
+
+    @cached_property
+    def admin(self):
+>       from app.services.admin_service import AdminService
+E       ModuleNotFoundError: No module named 'app.services.admin_service'
+
+app/runtime.py:34: ModuleNotFoundError
+________ test_client_scopes_and_grants_need_explicit_approved_ingestion ________
+
+rt = <app.runtime.Runtime object at 0x7fe14caf97b0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_client_scopes_and_grants_need_explicit_approved_ingestion(rt,human,enterprise_app_body):
+>       a,c=await prepare(rt,human,enterprise_app_body)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:110: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_admin_connections.py:13: in prepare
+    await rt.admin.bootstrap(human)
+          ^^^^^^^^
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fe14caf97b0>
+
+    @cached_property
+    def admin(self):
+>       from app.services.admin_service import AdminService
+E       ModuleNotFoundError: No module named 'app.services.admin_service'
+
+app/runtime.py:34: ModuleNotFoundError
+_________________ test_management_requires_human_and_own_scope _________________
+
+rt = <app.runtime.Runtime object at 0x7fe14cae6d50>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def test_management_requires_human_and_own_scope(rt,human):
+>       await rt.admin.bootstrap(human)
+              ^^^^^^^^
+
+tests/integration/test_admin_connections.py:125: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fe14cae6d50>
+
+    @cached_property
+    def admin(self):
+>       from app.services.admin_service import AdminService
+E       ModuleNotFoundError: No module named 'app.services.admin_service'
+
+app/runtime.py:34: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_admin_connections.py::test_bootstrap_once_and_no_implicit_content - ModuleNotFoundError: No module named 'app.services.admin_service'
+FAILED tests/integration/test_admin_connections.py::test_config_encrypts_and_never_returns_secrets - ModuleNotFoundError: No module named 'app.services.admin_service'
+FAILED tests/integration/test_admin_connections.py::test_employee_identity_conflict_and_tenant_isolation - ModuleNotFoundError: No module named 'app.services.admin_service'
+FAILED tests/integration/test_admin_connections.py::test_enterprise_cannot_claim_unbound_operator - ModuleNotFoundError: No module named 'app.services.admin_service'
+FAILED tests/integration/test_admin_connections.py::test_oauth_state_single_use_and_confirmation_bound_to_owner - ModuleNotFoundError: No module named 'app.services.admin_service'
+FAILED tests/integration/test_admin_connections.py::test_oauth_foreign_corporation_not_activated - ModuleNotFoundError: No module named 'app.services.admin_service'
+FAILED tests/integration/test_admin_connections.py::test_sts_early_callback_waits_for_request_and_newer_wins - ModuleNotFoundError: No module named 'app.services.admin_service'
+FAILED tests/integration/test_admin_connections.py::test_client_scopes_and_grants_need_explicit_approved_ingestion - ModuleNotFoundError: No module named 'app.services.admin_service'
+FAILED tests/integration/test_admin_connections.py::test_management_requires_human_and_own_scope - ModuleNotFoundError: No module named 'app.services.admin_service'
+9 failed in 4.01s

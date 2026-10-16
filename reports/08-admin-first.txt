@@ -1,0 +1,303 @@
+FFFFFFFFF                                                                [100%]
+=================================== FAILURES ===================================
+_________________ test_bootstrap_once_and_no_implicit_content __________________
+
+rt = <app.runtime.Runtime object at 0x7f92eb0fe510>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def test_bootstrap_once_and_no_implicit_content(rt,human):
+>       result = await rt.admin.bootstrap(human)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f92eaf01400>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def bootstrap(self, principal):
+        member=await self.human(principal)
+        if member.member_role!='admin': raise MeetingError('PERMISSION_DENIED',403)
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            exists=await s.scalar(select(PolicyVersion).where(PolicyVersion.org_id==principal.org_id))
+            if exists: raise MeetingError('CONFLICT',409)
+            s.add(AccessGrant(org_id=principal.org_id,subject_type='MEMBER',subject_id=principal.member_id,
+                actions=sorted(MANAGEMENT_ACTIONS),scope_type='ORG_APPROVED',purpose='MANAGE',issued_by=principal.member_id,
+                reason='Initial organization administrator, no content rights'))
+            s.add(Client(org_id=principal.org_id,name='Meeting Portal',client_type='PORTAL',owner_member_id=principal.member_id,
+                allowed_scopes=sorted(BUSINESS_ACTIONS),enabled=True,allow_service=False,redirect_uris=[]))
+            await self.rt.policy.bump(s,principal.org_id)
+>           await record(s,principal,'organization.bootstrap',details={})
+E           TypeError: object NoneType can't be used in 'await' expression
+
+app/services/admin_service.py:62: TypeError
+________________ test_config_encrypts_and_never_returns_secrets ________________
+
+rt = <app.runtime.Runtime object at 0x7f92ead39950>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_config_encrypts_and_never_returns_secrets(rt,human,enterprise_app_body):
+>       await rt.admin.bootstrap(human)
+
+tests/integration/test_admin_connections.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f92ebcd2350>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def bootstrap(self, principal):
+        member=await self.human(principal)
+        if member.member_role!='admin': raise MeetingError('PERMISSION_DENIED',403)
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            exists=await s.scalar(select(PolicyVersion).where(PolicyVersion.org_id==principal.org_id))
+            if exists: raise MeetingError('CONFLICT',409)
+            s.add(AccessGrant(org_id=principal.org_id,subject_type='MEMBER',subject_id=principal.member_id,
+                actions=sorted(MANAGEMENT_ACTIONS),scope_type='ORG_APPROVED',purpose='MANAGE',issued_by=principal.member_id,
+                reason='Initial organization administrator, no content rights'))
+            s.add(Client(org_id=principal.org_id,name='Meeting Portal',client_type='PORTAL',owner_member_id=principal.member_id,
+                allowed_scopes=sorted(BUSINESS_ACTIONS),enabled=True,allow_service=False,redirect_uris=[]))
+            await self.rt.policy.bump(s,principal.org_id)
+>           await record(s,principal,'organization.bootstrap',details={})
+E           TypeError: object NoneType can't be used in 'await' expression
+
+app/services/admin_service.py:62: TypeError
+_____________ test_employee_identity_conflict_and_tenant_isolation _____________
+
+rt = <app.runtime.Runtime object at 0x7f92ead3bb10>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_employee_identity_conflict_and_tenant_isolation(rt,human,enterprise_app_body):
+>       a,c = await prepare(rt,human,enterprise_app_body)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_admin_connections.py:13: in prepare
+    await rt.admin.bootstrap(human)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f92ebcd1f90>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def bootstrap(self, principal):
+        member=await self.human(principal)
+        if member.member_role!='admin': raise MeetingError('PERMISSION_DENIED',403)
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            exists=await s.scalar(select(PolicyVersion).where(PolicyVersion.org_id==principal.org_id))
+            if exists: raise MeetingError('CONFLICT',409)
+            s.add(AccessGrant(org_id=principal.org_id,subject_type='MEMBER',subject_id=principal.member_id,
+                actions=sorted(MANAGEMENT_ACTIONS),scope_type='ORG_APPROVED',purpose='MANAGE',issued_by=principal.member_id,
+                reason='Initial organization administrator, no content rights'))
+            s.add(Client(org_id=principal.org_id,name='Meeting Portal',client_type='PORTAL',owner_member_id=principal.member_id,
+                allowed_scopes=sorted(BUSINESS_ACTIONS),enabled=True,allow_service=False,redirect_uris=[]))
+            await self.rt.policy.bump(s,principal.org_id)
+>           await record(s,principal,'organization.bootstrap',details={})
+E           TypeError: object NoneType can't be used in 'await' expression
+
+app/services/admin_service.py:62: TypeError
+________________ test_enterprise_cannot_claim_unbound_operator _________________
+
+rt = <app.runtime.Runtime object at 0x7f92eac11220>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_enterprise_cannot_claim_unbound_operator(rt,human,enterprise_app_body):
+>       await rt.admin.bootstrap(human)
+
+tests/integration/test_admin_connections.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f92eac12c40>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def bootstrap(self, principal):
+        member=await self.human(principal)
+        if member.member_role!='admin': raise MeetingError('PERMISSION_DENIED',403)
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            exists=await s.scalar(select(PolicyVersion).where(PolicyVersion.org_id==principal.org_id))
+            if exists: raise MeetingError('CONFLICT',409)
+            s.add(AccessGrant(org_id=principal.org_id,subject_type='MEMBER',subject_id=principal.member_id,
+                actions=sorted(MANAGEMENT_ACTIONS),scope_type='ORG_APPROVED',purpose='MANAGE',issued_by=principal.member_id,
+                reason='Initial organization administrator, no content rights'))
+            s.add(Client(org_id=principal.org_id,name='Meeting Portal',client_type='PORTAL',owner_member_id=principal.member_id,
+                allowed_scopes=sorted(BUSINESS_ACTIONS),enabled=True,allow_service=False,redirect_uris=[]))
+            await self.rt.policy.bump(s,principal.org_id)
+>           await record(s,principal,'organization.bootstrap',details={})
+E           TypeError: object NoneType can't be used in 'await' expression
+
+app/services/admin_service.py:62: TypeError
+_________ test_oauth_state_single_use_and_confirmation_bound_to_owner __________
+
+rt = <app.runtime.Runtime object at 0x7f92eac13e10>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_oauth_state_single_use_and_confirmation_bound_to_owner(rt,human,enterprise_app_body):
+>       await rt.admin.bootstrap(human)
+
+tests/integration/test_admin_connections.py:62: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f92eac4d5b0>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def bootstrap(self, principal):
+        member=await self.human(principal)
+        if member.member_role!='admin': raise MeetingError('PERMISSION_DENIED',403)
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            exists=await s.scalar(select(PolicyVersion).where(PolicyVersion.org_id==principal.org_id))
+            if exists: raise MeetingError('CONFLICT',409)
+            s.add(AccessGrant(org_id=principal.org_id,subject_type='MEMBER',subject_id=principal.member_id,
+                actions=sorted(MANAGEMENT_ACTIONS),scope_type='ORG_APPROVED',purpose='MANAGE',issued_by=principal.member_id,
+                reason='Initial organization administrator, no content rights'))
+            s.add(Client(org_id=principal.org_id,name='Meeting Portal',client_type='PORTAL',owner_member_id=principal.member_id,
+                allowed_scopes=sorted(BUSINESS_ACTIONS),enabled=True,allow_service=False,redirect_uris=[]))
+            await self.rt.policy.bump(s,principal.org_id)
+>           await record(s,principal,'organization.bootstrap',details={})
+E           TypeError: object NoneType can't be used in 'await' expression
+
+app/services/admin_service.py:62: TypeError
+_________________ test_oauth_foreign_corporation_not_activated _________________
+
+rt = <app.runtime.Runtime object at 0x7f92eabd6e70>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_oauth_foreign_corporation_not_activated(rt,human,enterprise_app_body):
+>       await rt.admin.bootstrap(human)
+
+tests/integration/test_admin_connections.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f92eabbc5f0>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def bootstrap(self, principal):
+        member=await self.human(principal)
+        if member.member_role!='admin': raise MeetingError('PERMISSION_DENIED',403)
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            exists=await s.scalar(select(PolicyVersion).where(PolicyVersion.org_id==principal.org_id))
+            if exists: raise MeetingError('CONFLICT',409)
+            s.add(AccessGrant(org_id=principal.org_id,subject_type='MEMBER',subject_id=principal.member_id,
+                actions=sorted(MANAGEMENT_ACTIONS),scope_type='ORG_APPROVED',purpose='MANAGE',issued_by=principal.member_id,
+                reason='Initial organization administrator, no content rights'))
+            s.add(Client(org_id=principal.org_id,name='Meeting Portal',client_type='PORTAL',owner_member_id=principal.member_id,
+                allowed_scopes=sorted(BUSINESS_ACTIONS),enabled=True,allow_service=False,redirect_uris=[]))
+            await self.rt.policy.bump(s,principal.org_id)
+>           await record(s,principal,'organization.bootstrap',details={})
+E           TypeError: object NoneType can't be used in 'await' expression
+
+app/services/admin_service.py:62: TypeError
+___________ test_sts_early_callback_waits_for_request_and_newer_wins ___________
+
+rt = <app.runtime.Runtime object at 0x7f92eac26e00>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_sts_early_callback_waits_for_request_and_newer_wins(rt,human,enterprise_app_body):
+>       a,c=await prepare(rt,human,enterprise_app_body)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:96: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_admin_connections.py:13: in prepare
+    await rt.admin.bootstrap(human)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f92eaac8490>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def bootstrap(self, principal):
+        member=await self.human(principal)
+        if member.member_role!='admin': raise MeetingError('PERMISSION_DENIED',403)
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            exists=await s.scalar(select(PolicyVersion).where(PolicyVersion.org_id==principal.org_id))
+            if exists: raise MeetingError('CONFLICT',409)
+            s.add(AccessGrant(org_id=principal.org_id,subject_type='MEMBER',subject_id=principal.member_id,
+                actions=sorted(MANAGEMENT_ACTIONS),scope_type='ORG_APPROVED',purpose='MANAGE',issued_by=principal.member_id,
+                reason='Initial organization administrator, no content rights'))
+            s.add(Client(org_id=principal.org_id,name='Meeting Portal',client_type='PORTAL',owner_member_id=principal.member_id,
+                allowed_scopes=sorted(BUSINESS_ACTIONS),enabled=True,allow_service=False,redirect_uris=[]))
+            await self.rt.policy.bump(s,principal.org_id)
+>           await record(s,principal,'organization.bootstrap',details={})
+E           TypeError: object NoneType can't be used in 'await' expression
+
+app/services/admin_service.py:62: TypeError
+________ test_client_scopes_and_grants_need_explicit_approved_ingestion ________
+
+rt = <app.runtime.Runtime object at 0x7f92eaac9d00>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_client_scopes_and_grants_need_explicit_approved_ingestion(rt,human,enterprise_app_body):
+>       a,c=await prepare(rt,human,enterprise_app_body)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_admin_connections.py:110: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_admin_connections.py:13: in prepare
+    await rt.admin.bootstrap(human)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f92eaacb020>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def bootstrap(self, principal):
+        member=await self.human(principal)
+        if member.member_role!='admin': raise MeetingError('PERMISSION_DENIED',403)
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            exists=await s.scalar(select(PolicyVersion).where(PolicyVersion.org_id==principal.org_id))
+            if exists: raise MeetingError('CONFLICT',409)
+            s.add(AccessGrant(org_id=principal.org_id,subject_type='MEMBER',subject_id=principal.member_id,
+                actions=sorted(MANAGEMENT_ACTIONS),scope_type='ORG_APPROVED',purpose='MANAGE',issued_by=principal.member_id,
+                reason='Initial organization administrator, no content rights'))
+            s.add(Client(org_id=principal.org_id,name='Meeting Portal',client_type='PORTAL',owner_member_id=principal.member_id,
+                allowed_scopes=sorted(BUSINESS_ACTIONS),enabled=True,allow_service=False,redirect_uris=[]))
+            await self.rt.policy.bump(s,principal.org_id)
+>           await record(s,principal,'organization.bootstrap',details={})
+E           TypeError: object NoneType can't be used in 'await' expression
+
+app/services/admin_service.py:62: TypeError
+_________________ test_management_requires_human_and_own_scope _________________
+
+rt = <app.runtime.Runtime object at 0x7f92eac45b50>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def test_management_requires_human_and_own_scope(rt,human):
+>       await rt.admin.bootstrap(human)
+
+tests/integration/test_admin_connections.py:125: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.services.admin_service.AdminService object at 0x7f92eac45250>
+principal = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g...', 'meeting.content.download'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+
+    async def bootstrap(self, principal):
+        member=await self.human(principal)
+        if member.member_role!='admin': raise MeetingError('PERMISSION_DENIED',403)
+        async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
+            exists=await s.scalar(select(PolicyVersion).where(PolicyVersion.org_id==principal.org_id))
+            if exists: raise MeetingError('CONFLICT',409)
+            s.add(AccessGrant(org_id=principal.org_id,subject_type='MEMBER',subject_id=principal.member_id,
+                actions=sorted(MANAGEMENT_ACTIONS),scope_type='ORG_APPROVED',purpose='MANAGE',issued_by=principal.member_id,
+                reason='Initial organization administrator, no content rights'))
+            s.add(Client(org_id=principal.org_id,name='Meeting Portal',client_type='PORTAL',owner_member_id=principal.member_id,
+                allowed_scopes=sorted(BUSINESS_ACTIONS),enabled=True,allow_service=False,redirect_uris=[]))
+            await self.rt.policy.bump(s,principal.org_id)
+>           await record(s,principal,'organization.bootstrap',details={})
+E           TypeError: object NoneType can't be used in 'await' expression
+
+app/services/admin_service.py:62: TypeError
+=========================== short test summary info ============================
+FAILED tests/integration/test_admin_connections.py::test_bootstrap_once_and_no_implicit_content - TypeError: object NoneType can't be used in 'await' expression
+FAILED tests/integration/test_admin_connections.py::test_config_encrypts_and_never_returns_secrets - TypeError: object NoneType can't be used in 'await' expression
+FAILED tests/integration/test_admin_connections.py::test_employee_identity_conflict_and_tenant_isolation - TypeError: object NoneType can't be used in 'await' expression
+FAILED tests/integration/test_admin_connections.py::test_enterprise_cannot_claim_unbound_operator - TypeError: object NoneType can't be used in 'await' expression
+FAILED tests/integration/test_admin_connections.py::test_oauth_state_single_use_and_confirmation_bound_to_owner - TypeError: object NoneType can't be used in 'await' expression
+FAILED tests/integration/test_admin_connections.py::test_oauth_foreign_corporation_not_activated - TypeError: object NoneType can't be used in 'await' expression
+FAILED tests/integration/test_admin_connections.py::test_sts_early_callback_waits_for_request_and_newer_wins - TypeError: object NoneType can't be used in 'await' expression
+FAILED tests/integration/test_admin_connections.py::test_client_scopes_and_grants_need_explicit_approved_ingestion - TypeError: object NoneType can't be used in 'await' expression
+FAILED tests/integration/test_admin_connections.py::test_management_requires_human_and_own_scope - TypeError: object NoneType can't be used in 'await' expression
+9 failed in 7.17s

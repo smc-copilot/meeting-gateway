@@ -1,0 +1,162 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+___________________ test_http_auth_validation_redacts_secret ___________________
+
+rt = <app.runtime.Runtime object at 0x7f65a9fce900>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.create.self'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_http_auth_validation_redacts_secret(rt,human,enterprise_app_body):
+        await seed(rt,human,enterprise_app_body)
+>       async with await client_for(rt) as client:
+                   ^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_http_mcp.py:21: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f65a9fce900>
+
+    async def client_for(rt):
+>       from app.main import create_app
+E       ModuleNotFoundError: No module named 'app.main'
+
+tests/integration/test_http_mcp.py:11: ModuleNotFoundError
+________________ test_rest_metadata_only_mcp_equivalent_denial _________________
+
+rt = <app.runtime.Runtime object at 0x7f65a9d22490>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.create.self'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_rest_metadata_only_mcp_equivalent_denial(rt,human,enterprise_app_body):
+        await seed(rt,human,enterprise_app_body)
+        rest=await issue(rt,human,['meeting.read'],rt.settings.rest_resource_uri)
+        mcp=await issue(rt,human,['meeting.read'],rt.settings.mcp_resource_uri)
+>       async with await client_for(rt) as client:
+                   ^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_http_mcp.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f65a9d22490>
+
+    async def client_for(rt):
+>       from app.main import create_app
+E       ModuleNotFoundError: No module named 'app.main'
+
+tests/integration/test_http_mcp.py:11: ModuleNotFoundError
+_____________ test_mcp_protocol_handshake_list_and_wrong_audience ______________
+
+rt = <app.runtime.Runtime object at 0x7f65a9fc42d0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.create.self'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_mcp_protocol_handshake_list_and_wrong_audience(rt,human,enterprise_app_body):
+        await seed(rt,human,enterprise_app_body)
+        token=await issue(rt,human,['meeting.read'],rt.settings.mcp_resource_uri)
+>       async with await client_for(rt) as client:
+                   ^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_http_mcp.py:46: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f65a9fc42d0>
+
+    async def client_for(rt):
+>       from app.main import create_app
+E       ModuleNotFoundError: No module named 'app.main'
+
+tests/integration/test_http_mcp.py:11: ModuleNotFoundError
+__________________ test_public_metadata_and_wrong_host_origin __________________
+
+rt = <app.runtime.Runtime object at 0x7f65a9c93490>
+
+    async def test_public_metadata_and_wrong_host_origin(rt):
+>       async with await client_for(rt) as client:
+                   ^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_http_mcp.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f65a9c93490>
+
+    async def client_for(rt):
+>       from app.main import create_app
+E       ModuleNotFoundError: No module named 'app.main'
+
+tests/integration/test_http_mcp.py:11: ModuleNotFoundError
+_________ test_admin_token_cannot_confirm_and_unknown_fields_forbidden _________
+
+rt = <app.runtime.Runtime object at 0x7f65a992d810>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.create.self'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_admin_token_cannot_confirm_and_unknown_fields_forbidden(rt,human,enterprise_app_body):
+        from test_operations import request
+        _,c,p,sp=await seed(rt,human,enterprise_app_body)
+        token=await issue(rt,human,['meeting.create.self'],rt.settings.rest_resource_uri)
+>       async with await client_for(rt) as client:
+                   ^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_http_mcp.py:76: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f65a992d810>
+
+    async def client_for(rt):
+>       from app.main import create_app
+E       ModuleNotFoundError: No module named 'app.main'
+
+tests/integration/test_http_mcp.py:11: ModuleNotFoundError
+__________________ test_portal_bootstrap_and_no_implicit_read __________________
+
+rt = <app.runtime.Runtime object at 0x7f65a9959490>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.create.self'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_portal_bootstrap_and_no_implicit_read(rt,human,enterprise_app_body):
+>       async with await client_for(rt) as client:
+                   ^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_http_mcp.py:89: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f65a9959490>
+
+    async def client_for(rt):
+>       from app.main import create_app
+E       ModuleNotFoundError: No module named 'app.main'
+
+tests/integration/test_http_mcp.py:11: ModuleNotFoundError
+__________________ test_http_oauth_token_grants_and_code_flow __________________
+
+rt = <app.runtime.Runtime object at 0x7f65a97d5480>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.create.self'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_http_oauth_token_grants_and_code_flow(rt,human,enterprise_app_body):
+        from app.core.security import pkce_challenge
+        await seed(rt,human,enterprise_app_body)
+        c=await rt.admin.create_client(human,ClientCreate(name='MCP native',client_type='PUBLIC_MCP',allowed_scopes=['meeting.read'],
+            redirect_uris=['https://client.example.org/callback'],owner_member_id='m1',reason='Test authorization'))
+>       async with await client_for(rt) as client:
+                   ^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_http_mcp.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f65a97d5480>
+
+    async def client_for(rt):
+>       from app.main import create_app
+E       ModuleNotFoundError: No module named 'app.main'
+
+tests/integration/test_http_mcp.py:11: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_http_mcp.py::test_http_auth_validation_redacts_secret - ModuleNotFoundError: No module named 'app.main'
+FAILED tests/integration/test_http_mcp.py::test_rest_metadata_only_mcp_equivalent_denial - ModuleNotFoundError: No module named 'app.main'
+FAILED tests/integration/test_http_mcp.py::test_mcp_protocol_handshake_list_and_wrong_audience - ModuleNotFoundError: No module named 'app.main'
+FAILED tests/integration/test_http_mcp.py::test_public_metadata_and_wrong_host_origin - ModuleNotFoundError: No module named 'app.main'
+FAILED tests/integration/test_http_mcp.py::test_admin_token_cannot_confirm_and_unknown_fields_forbidden - ModuleNotFoundError: No module named 'app.main'
+FAILED tests/integration/test_http_mcp.py::test_portal_bootstrap_and_no_implicit_read - ModuleNotFoundError: No module named 'app.main'
+FAILED tests/integration/test_http_mcp.py::test_http_oauth_token_grants_and_code_flow - ModuleNotFoundError: No module named 'app.main'
+7 failed in 3.23s

@@ -1,0 +1,56 @@
+# For monorepo use copy this workflow to repository-root .github/workflows/meeting.yml.
+name: Meeting gateway gates
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: {POSTGRES_USER: meeting, POSTGRES_PASSWORD: test_only_password, POSTGRES_DB: meeting_test_ci}
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U meeting -d meeting_test_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: astral-sh/setup-uv@v5
+      - name: Locate service
+        run: |
+          if [ -d nodeskclaw-meeting/app ]; then echo "ROOT=nodeskclaw-meeting" >> "$GITHUB_ENV"; else echo "ROOT=." >> "$GITHUB_ENV"; fi
+      - name: Resolve, migrate and test (registry access required)
+        env:
+          TEST_POSTGRES_URL: postgresql+asyncpg://meeting:test_only_password@127.0.0.1:5432/meeting_test_ci
+        run: |
+          cd "$ROOT"
+          uv sync --group dev
+          MIGRATION_DATABASE_URL="$TEST_POSTGRES_URL" uv run alembic upgrade head
+          uv run pytest --cov=app --cov-report=term-missing --cov-report=xml --junitxml=reports/ci-junit.xml
+          uv run python -m compileall -q app integration/backend
+      - name: Ruff review report
+        if: always()
+        run: |
+          cd "$ROOT"
+          uv run ruff check app tests --output-format=github
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: meeting-test-report, path: '**/reports/ci-junit.xml'}
+  portal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Build against the examined monorepo baseline
+        run: |
+          git clone https://github.com/loudon84/nodeskclaw.git baseline
+          git -C baseline checkout 83edfb0d97f07920deb8bb9ce44a91e3e32cc3af
+          if [ -d nodeskclaw-meeting/app ]; then ROOT=nodeskclaw-meeting; else ROOT=.; fi
+          python "$ROOT/scripts/integrate.py" --repo baseline --apply
+          cd baseline/nodeskclaw-portal
+          npm ci
+          VITE_MEETING_ENABLED=true npm run build

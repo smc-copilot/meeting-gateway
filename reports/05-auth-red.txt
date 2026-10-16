@@ -1,0 +1,147 @@
+EEEEEEEEEEEEE                                                            [100%]
+==================================== ERRORS ====================================
+________ ERROR at setup of test_exchange_binds_real_member_and_audience ________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_exchange_binds_real_membe0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+______ ERROR at setup of test_exchange_requires_both_client_and_employee _______
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_exchange_requires_both_cl0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+______________ ERROR at setup of test_request_cannot_expand_scope ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_request_cannot_expand_sco0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+________ ERROR at setup of test_raw_upstream_or_backend_token_rejected _________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_raw_upstream_or_backend_t0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+____ ERROR at setup of test_member_disable_and_identity_outage_fail_closed _____
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_member_disable_and_identi0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+________ ERROR at setup of test_client_disable_revokes_existing_access _________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_client_disable_revokes_ex0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+_______ ERROR at setup of test_refresh_rotates_and_reuse_revokes_family ________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_refresh_rotates_and_reuse0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+____________ ERROR at setup of test_refresh_cannot_change_audience _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_refresh_cannot_change_aud0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+_____ ERROR at setup of test_client_credentials_not_employee_impersonation _____
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_client_credentials_not_em0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+____ ERROR at setup of test_revocation_returns_no_cross_client_information _____
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_revocation_returns_no_cro0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+_____________ ERROR at setup of test_authorization_code_pkce_once ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_authorization_code_pkce_o0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+_______ ERROR at setup of test_authorization_rejects_arbitrary_redirect ________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_authorization_rejects_arb0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+_____ ERROR at setup of test_database_never_contains_raw_downstream_tokens _____
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2/test_database_never_contains_r0')
+
+    @pytest.fixture
+    async def runtime(tmp_path):
+>       from app.runtime import Runtime
+E       ModuleNotFoundError: No module named 'app.runtime'
+
+tests/integration/test_auth.py:31: ModuleNotFoundError
+=========================== short test summary info ============================
+ERROR tests/integration/test_auth.py::test_exchange_binds_real_member_and_audience - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_exchange_requires_both_client_and_employee - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_request_cannot_expand_scope - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_raw_upstream_or_backend_token_rejected - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_member_disable_and_identity_outage_fail_closed - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_client_disable_revokes_existing_access - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_refresh_rotates_and_reuse_revokes_family - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_refresh_cannot_change_audience - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_client_credentials_not_employee_impersonation - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_revocation_returns_no_cross_client_information - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_authorization_code_pkce_once - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_authorization_rejects_arbitrary_redirect - ModuleNotFoundError: No module named 'app.runtime'
+ERROR tests/integration/test_auth.py::test_database_never_contains_raw_downstream_tokens - ModuleNotFoundError: No module named 'app.runtime'
+13 errors in 0.57s

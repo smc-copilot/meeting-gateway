@@ -1,0 +1,31 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_oauth_invitee_identity_does_not_delegate_operator_authority _______
+
+rt = <app.runtime.Runtime object at 0x7fde8ad323c0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_oauth_invitee_identity_does_not_delegate_operator_authority(rt,human,enterprise_app_body):
+        from app.models import Application,Connection,IdentityBinding
+        from app.schemas.requests import ApplicationCreate
+        from urllib.parse import parse_qs,urlsplit
+        await rt.admin.bootstrap(human)
+        data=enterprise_app_body.model_dump();data.update(application_type='THIRD_PARTY_OAUTH',sdk_id='oauth-test',data_scope='user',
+            secret_id=None,secret_key=None,oauth_secret='private-test',allowed_open_corp_ids=['open-corp'])
+        app=await rt.admin.create_application(human,ApplicationCreate(**data))
+        start=await rt.connections.oauth_start(human,app['id'])
+        received=await rt.connections.oauth_callback(app['id'],parse_qs(urlsplit(start['authorization_url']).query)['state'][0],'code')
+        await rt.connections.confirm_oauth(human,received['connection_id'])
+        async with rt.db.transaction() as s:
+            c=await s.get(Connection,received['connection_id'])
+            s.add(IdentityBinding(org_id='o1',application_id=app['id'],member_id='m2',identity_type='openid',external_id='open-m2',
+                external_corp_id='open-corp',verification_source='verified second OAuth consent',verified_by='m2',verified_at=utcnow(),enabled=True))
+>       assert (await rt.connections.invitee(c,'m2')).id=='open-m2'
+                      ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'ConnectionService' object has no attribute 'invitee'
+
+tests/integration/test_security_review.py:71: AttributeError
+=========================== short test summary info ============================
+FAILED tests/integration/test_security_review.py::test_oauth_invitee_identity_does_not_delegate_operator_authority - AttributeError: 'ConnectionService' object has no attribute 'invitee'
+1 failed in 0.91s

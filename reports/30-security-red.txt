@@ -1,0 +1,94 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+_________ test_credential_generation_supports_microsecond_sts_sequence _________
+
+    def test_credential_generation_supports_microsecond_sts_sequence():
+>       assert isinstance(Credential.__table__.c.generation.type, BigInteger)
+E       AssertionError: assert False
+E        +  where False = isinstance(Integer(), BigInteger)
+E        +    where Integer() = Column('generation', Integer(), table=<meeting_credentials>, nullable=False, default=ScalarElementColumnDefault(1)).type
+E        +      where Column('generation', Integer(), table=<meeting_credentials>, nullable=False, default=ScalarElementColumnDefault(1)) = <sqlalchemy.sql.base.ReadOnlyColumnCollection object at 0x7f1e8d140f40>.generation
+E        +        where <sqlalchemy.sql.base.ReadOnlyColumnCollection object at 0x7f1e8d140f40> = Table('meeting_credentials', MetaData(), Column('application_id', String(length=36), ForeignKey('meeting_applications....'version', Integer(), table=<meeting_credentials>, nullable=False, default=ScalarElementColumnDefault(1)), schema=None).c
+E        +          where Table('meeting_credentials', MetaData(), Column('application_id', String(length=36), ForeignKey('meeting_applications....'version', Integer(), table=<meeting_credentials>, nullable=False, default=ScalarElementColumnDefault(1)), schema=None) = Credential.__table__
+
+tests/integration/test_security_review.py:11: AssertionError
+_______________________ test_host_does_not_prove_creator _______________________
+
+rt = <app.runtime.Runtime object at 0x7f1e8c43af90>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_host_does_not_prove_creator(rt, human, enterprise_app_body):
+        _, _, p, _ = await seed(rt, human, enterprise_app_body)
+        async with rt.db.transaction() as s:
+            grants = (await s.execute(select(AccessGrant).where(AccessGrant.purpose == 'ACCESS', AccessGrant.subject_type == 'MEMBER'))).scalars()
+            for g in grants:
+                g.scope_type = 'SELF_CREATED'
+>       with pytest.raises(MeetingError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'app.core.errors.MeetingError'>
+
+tests/integration/test_security_review.py:20: Failed
+_______________ test_scoped_management_cannot_manage_entire_org ________________
+
+rt = <app.runtime.Runtime object at 0x7f1e8c182ad0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_scoped_management_cannot_manage_entire_org(rt, human, enterprise_app_body):
+        await seed(rt, human, enterprise_app_body)
+        async with rt.db.transaction() as s:
+            grants = (await s.execute(select(AccessGrant).where(AccessGrant.purpose == 'MANAGE'))).scalars()
+            for g in grants:
+                g.scope_type = 'EXPLICIT'; g.resource_ids = ['meeting1']
+>       with pytest.raises(MeetingError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'app.core.errors.MeetingError'>
+
+tests/integration/test_security_review.py:33: Failed
+__________ test_disabling_ingestion_client_invalidates_cached_origin ___________
+
+rt = <app.runtime.Runtime object at 0x7f1e8c2fdbd0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_disabling_ingestion_client_invalidates_cached_origin(rt, human, enterprise_app_body):
+        _, _, p, _ = await seed(rt, human, enterprise_app_body)
+        async with rt.db.transaction() as s:
+            (await s.get(Client, 'sync-client')).enabled = False
+>       with pytest.raises(MeetingError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'app.core.errors.MeetingError'>
+
+tests/integration/test_security_review.py:41: Failed
+________________ test_global_stop_does_not_execute_worker_jobs _________________
+
+rt = <app.runtime.Runtime object at 0x7f1e7fe9ac40>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_global_stop_does_not_execute_worker_jobs(rt, human, enterprise_app_body):
+        from app.worker import Worker
+        _, c, _, sp = await seed(rt, human, enterprise_app_body)
+        async with rt.db.transaction() as s:
+            j = await rt.jobs.enqueue(s, 'SYNC', sp, {'kind':'CORP_RECORDS'}, connection_id=c['id'], dedup_key='off-switch')
+            ident=j.id
+        rt.settings.meeting_enabled=False
+>       assert await Worker(rt).run_once() is False
+E       assert True is False
+
+tests/integration/test_security_review.py:52: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.worker:worker.py:64 worker.job_failed job_id=da146b14-f34a-489f-8f75-cc45cfa3c584 reason=INTERNAL_ERROR
+=========================== short test summary info ============================
+FAILED tests/integration/test_security_review.py::test_credential_generation_supports_microsecond_sts_sequence - AssertionError: assert False
+ +  where False = isinstance(Integer(), BigInteger)
+ +    where Integer() = Column('generation', Integer(), table=<meeting_credentials>, nullable=False, default=ScalarElementColumnDefault(1)).type
+ +      where Column('generation', Integer(), table=<meeting_credentials>, nullable=False, default=ScalarElementColumnDefault(1)) = <sqlalchemy.sql.base.ReadOnlyColumnCollection object at 0x7f1e8d140f40>.generation
+ +        where <sqlalchemy.sql.base.ReadOnlyColumnCollection object at 0x7f1e8d140f40> = Table('meeting_credentials', MetaData(), Column('application_id', String(length=36), ForeignKey('meeting_applications....'version', Integer(), table=<meeting_credentials>, nullable=False, default=ScalarElementColumnDefault(1)), schema=None).c
+ +          where Table('meeting_credentials', MetaData(), Column('application_id', String(length=36), ForeignKey('meeting_applications....'version', Integer(), table=<meeting_credentials>, nullable=False, default=ScalarElementColumnDefault(1)), schema=None) = Credential.__table__
+FAILED tests/integration/test_security_review.py::test_host_does_not_prove_creator - Failed: DID NOT RAISE <class 'app.core.errors.MeetingError'>
+FAILED tests/integration/test_security_review.py::test_scoped_management_cannot_manage_entire_org - Failed: DID NOT RAISE <class 'app.core.errors.MeetingError'>
+FAILED tests/integration/test_security_review.py::test_disabling_ingestion_client_invalidates_cached_origin - Failed: DID NOT RAISE <class 'app.core.errors.MeetingError'>
+FAILED tests/integration/test_security_review.py::test_global_stop_does_not_execute_worker_jobs - assert True is False
+5 failed in 2.26s

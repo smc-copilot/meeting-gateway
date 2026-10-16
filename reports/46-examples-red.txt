@@ -1,0 +1,80 @@
+FFF.                                                                     [100%]
+=================================== FAILURES ===================================
+______ test_rest_example_rejects_untrusted_base_and_cross_origin_download ______
+
+    def test_rest_example_rejects_untrusted_base_and_cross_origin_download():
+>       module = load_example('rest_client')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/contracts/test_examples_cli.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'rest_client'
+
+    def load_example(name):
+        path = ROOT / 'examples' / (name + '.py')
+>       assert path.is_file(), f'Missing working example: {path.name}'
+E       AssertionError: Missing working example: rest_client.py
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/mnt/data/meeting-build/nodeskclaw-meeting/examples/rest_client.py').is_file
+
+tests/contracts/test_examples_cli.py:16: AssertionError
+______ test_mcp_example_has_explicit_protocol_and_checks_json_rpc_errors _______
+
+    def test_mcp_example_has_explicit_protocol_and_checks_json_rpc_errors():
+>       module = load_example('mcp_client')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/contracts/test_examples_cli.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'mcp_client'
+
+    def load_example(name):
+        path = ROOT / 'examples' / (name + '.py')
+>       assert path.is_file(), f'Missing working example: {path.name}'
+E       AssertionError: Missing working example: mcp_client.py
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/mnt/data/meeting-build/nodeskclaw-meeting/examples/mcp_client.py').is_file
+
+tests/contracts/test_examples_cli.py:16: AssertionError
+_______ test_event_example_verifies_exact_bytes_and_commits_idempotently _______
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-38/test_event_example_verifies_ex0')
+
+    def test_event_example_verifies_exact_bytes_and_commits_idempotently(tmp_path):
+        import hashlib
+        import hmac
+>       module = load_example('webhook_consumer')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/contracts/test_examples_cli.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'webhook_consumer'
+
+    def load_example(name):
+        path = ROOT / 'examples' / (name + '.py')
+>       assert path.is_file(), f'Missing working example: {path.name}'
+E       AssertionError: Missing working example: webhook_consumer.py
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/mnt/data/meeting-build/nodeskclaw-meeting/examples/webhook_consumer.py').is_file
+
+tests/contracts/test_examples_cli.py:16: AssertionError
+=========================== short test summary info ============================
+FAILED tests/contracts/test_examples_cli.py::test_rest_example_rejects_untrusted_base_and_cross_origin_download - AssertionError: Missing working example: rest_client.py
+assert False
+ +  where False = is_file()
+ +    where is_file = PosixPath('/mnt/data/meeting-build/nodeskclaw-meeting/examples/rest_client.py').is_file
+FAILED tests/contracts/test_examples_cli.py::test_mcp_example_has_explicit_protocol_and_checks_json_rpc_errors - AssertionError: Missing working example: mcp_client.py
+assert False
+ +  where False = is_file()
+ +    where is_file = PosixPath('/mnt/data/meeting-build/nodeskclaw-meeting/examples/mcp_client.py').is_file
+FAILED tests/contracts/test_examples_cli.py::test_event_example_verifies_exact_bytes_and_commits_idempotently - AssertionError: Missing working example: webhook_consumer.py
+assert False
+ +  where False = is_file()
+ +    where is_file = PosixPath('/mnt/data/meeting-build/nodeskclaw-meeting/examples/webhook_consumer.py').is_file
+3 failed, 1 passed in 1.99s

@@ -1,0 +1,3 @@
+/opt/pyvenv/lib/python3.13/site-packages/fastapi/openapi/utils.py:254: UserWarning: Duplicate Operation ID no_sse_mcp_delete for function no_sse at /mnt/data/meeting-build/nodeskclaw-meeting/app/mcp/server.py
+  warnings.warn(message, stacklevel=1)
+Contracts generated from registered routes and tool definitions.

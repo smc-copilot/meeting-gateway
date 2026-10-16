@@ -1,0 +1,10 @@
+WARNING: The directory '/home/oai/.cache/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+Processing /mnt/data/meeting-build/nodeskclaw-meeting
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: nodeskclaw-meeting
+  Building wheel for nodeskclaw-meeting (pyproject.toml): started
+  Building wheel for nodeskclaw-meeting (pyproject.toml): finished with status 'done'
+  Created wheel for nodeskclaw-meeting: filename=nodeskclaw_meeting-1.0.0rc1-py3-none-any.whl size=107709 sha256=35d4092977e3b02f1bba5b7db8f8ff6940777f5f46c708899f27392e1ea2062c
+  Stored in directory: /tmp/pip-ephem-wheel-cache-x85m2jet/wheels/8a/29/33/589b56f30e75bf7cf18333bbffe81ad5a897cc340528143005
+Successfully built nodeskclaw-meeting

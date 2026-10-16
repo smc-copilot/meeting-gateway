@@ -1,0 +1,212 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-9.0.2, pluggy-1.6.0 -- /opt/pyvenv/bin/python
+cachedir: .pytest_cache
+metadata: {'Python': '3.13.5', 'Platform': 'Linux-6.18.44-x86_64-with-glibc2.41', 'Packages': {'pytest': '9.0.2', 'pluggy': '1.6.0'}, 'Plugins': {'anyio': '4.13.0', 'ddtrace': '4.4.0', 'Faker': '40.1.2', 'asyncio': '1.3.0', 'cov': '7.0.0', 'json-report': '1.5.0', 'metadata': '3.1.1'}, 'PLATFORM': 'linux/amd64', 'CI': 'true'}
+rootdir: /mnt/data/meeting-build/nodeskclaw-meeting
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.13.0, ddtrace-4.4.0, Faker-40.1.2, asyncio-1.3.0, cov-7.0.0, json-report-1.5.0, metadata-3.1.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 119 items
+
+tests/contracts/test_delivery_structure.py::test_initial_migration_can_upgrade_and_repeat PASSED [  0%]
+tests/contracts/test_delivery_structure.py::test_monorepo_integration_files_are_real_modules PASSED [  1%]
+tests/contracts/test_examples_cli.py::test_rest_example_rejects_untrusted_base_and_cross_origin_download PASSED [  2%]
+tests/contracts/test_examples_cli.py::test_mcp_example_has_explicit_protocol_and_checks_json_rpc_errors PASSED [  3%]
+tests/contracts/test_examples_cli.py::test_event_example_verifies_exact_bytes_and_commits_idempotently PASSED [  4%]
+tests/contracts/test_examples_cli.py::test_generate_env_never_overwrites_and_contains_valid_random_keys PASSED [  5%]
+tests/contracts/test_external_gates.py::test_postgres_independent_connections_lock_and_claim SKIPPED [  5%]
+tests/contracts/test_external_gates.py::test_mcp_sdk_accepts_wire_contract SKIPPED [  6%]
+tests/contracts/test_installer.py::test_installer_dry_run_idempotency_and_rollback PASSED [  7%]
+tests/contracts/test_installer.py::test_installer_refuses_overwrite_and_modified_rollback PASSED [  8%]
+tests/integration/test_admin_connections.py::test_bootstrap_once_and_no_implicit_content PASSED [  9%]
+tests/integration/test_admin_connections.py::test_config_encrypts_and_never_returns_secrets PASSED [ 10%]
+tests/integration/test_admin_connections.py::test_employee_identity_conflict_and_tenant_isolation PASSED [ 10%]
+tests/integration/test_admin_connections.py::test_enterprise_cannot_claim_unbound_operator PASSED [ 11%]
+tests/integration/test_admin_connections.py::test_oauth_state_single_use_and_confirmation_bound_to_owner PASSED [ 12%]
+tests/integration/test_admin_connections.py::test_oauth_foreign_corporation_not_activated PASSED [ 13%]
+tests/integration/test_admin_connections.py::test_sts_early_callback_waits_for_request_and_newer_wins PASSED [ 14%]
+tests/integration/test_admin_connections.py::test_client_scopes_and_grants_need_explicit_approved_ingestion PASSED [ 15%]
+tests/integration/test_admin_connections.py::test_management_requires_human_and_own_scope PASSED [ 15%]
+tests/integration/test_auth.py::test_exchange_binds_real_member_and_audience PASSED [ 16%]
+tests/integration/test_auth.py::test_exchange_requires_both_client_and_employee PASSED [ 17%]
+tests/integration/test_auth.py::test_request_cannot_expand_scope PASSED  [ 18%]
+tests/integration/test_auth.py::test_raw_upstream_or_backend_token_rejected PASSED [ 19%]
+tests/integration/test_auth.py::test_member_disable_and_identity_outage_fail_closed PASSED [ 20%]
+tests/integration/test_auth.py::test_client_disable_revokes_existing_access PASSED [ 21%]
+tests/integration/test_auth.py::test_refresh_rotates_and_reuse_revokes_family PASSED [ 21%]
+tests/integration/test_auth.py::test_refresh_cannot_change_audience PASSED [ 22%]
+tests/integration/test_auth.py::test_client_credentials_not_employee_impersonation PASSED [ 23%]
+tests/integration/test_auth.py::test_revocation_returns_no_cross_client_information PASSED [ 24%]
+tests/integration/test_auth.py::test_authorization_code_pkce_once PASSED [ 25%]
+tests/integration/test_auth.py::test_authorization_rejects_arbitrary_redirect PASSED [ 26%]
+tests/integration/test_auth.py::test_database_never_contains_raw_downstream_tokens PASSED [ 26%]
+tests/integration/test_database.py::test_database_utc_and_soft_delete_partial_unique PASSED [ 27%]
+tests/integration/test_database.py::test_sqlite_refused_for_production PASSED [ 28%]
+tests/integration/test_downloads.py::test_native_ticket_is_bound_not_url_leak PASSED [ 29%]
+tests/integration/test_downloads.py::test_download_rechecks_revocation_and_expiry PASSED [ 30%]
+tests/integration/test_downloads.py::test_private_url_and_unavailable_native_export_rejected PASSED [ 31%]
+tests/integration/test_downloads.py::test_stream_quota_and_single_range_validation PASSED [ 31%]
+tests/integration/test_events.py::test_webhook_exact_challenge_and_replay_dedup PASSED [ 32%]
+tests/integration/test_events.py::test_forged_callback_not_persisted PASSED [ 33%]
+tests/integration/test_events.py::test_sts_worker_no_sensitive_payload_in_summary PASSED [ 34%]
+tests/integration/test_events.py::test_outbox_same_transaction_and_no_title_or_body PASSED [ 35%]
+tests/integration/test_events.py::test_invalidation_only_for_previously_delivered_id PASSED [ 36%]
+tests/integration/test_http_mcp.py::test_http_auth_validation_redacts_secret PASSED [ 36%]
+tests/integration/test_http_mcp.py::test_rest_metadata_only_mcp_equivalent_denial PASSED [ 37%]
+tests/integration/test_http_mcp.py::test_mcp_protocol_handshake_list_and_wrong_audience PASSED [ 38%]
+tests/integration/test_http_mcp.py::test_public_metadata_and_wrong_host_origin PASSED [ 39%]
+tests/integration/test_http_mcp.py::test_admin_token_cannot_confirm_and_unknown_fields_forbidden PASSED [ 40%]
+tests/integration/test_http_mcp.py::test_portal_bootstrap_and_no_implicit_read PASSED [ 41%]
+tests/integration/test_http_mcp.py::test_http_oauth_token_grants_and_code_flow PASSED [ 42%]
+tests/integration/test_operations.py::test_creation_prepare_is_cross_protocol_idempotent PASSED [ 42%]
+tests/integration/test_operations.py::test_confirm_only_trusted_owner_then_execute_once PASSED [ 43%]
+tests/integration/test_operations.py::test_confirm_hash_and_policy_changes_block PASSED [ 44%]
+tests/integration/test_operations.py::test_upstream_timeout_unknown_never_retry PASSED [ 45%]
+tests/integration/test_operations.py::test_revocation_between_confirm_and_execution_blocks PASSED [ 46%]
+tests/integration/test_operations.py::test_no_service_creation_no_expired_confirmation PASSED [ 47%]
+tests/integration/test_resources_jobs.py::test_visible_before_pagination_and_resource_nonleak PASSED [ 47%]
+tests/integration/test_resources_jobs.py::test_cache_read_still_checks_current_origin_and_action PASSED [ 48%]
+tests/integration/test_resources_jobs.py::test_transcript_full_inclusive_pagination PASSED [ 49%]
+tests/integration/test_resources_jobs.py::test_partial_or_stuck_transcript_never_published PASSED [ 50%]
+tests/integration/test_resources_jobs.py::test_job_lease_fencing_and_retry_after PASSED [ 51%]
+tests/integration/test_resources_jobs.py::test_corp_sync_window_and_dedup_upsert PASSED [ 52%]
+tests/integration/test_resources_jobs.py::test_ingestion_revoked_before_worker_executes PASSED [ 52%]
+tests/integration/test_resources_jobs.py::test_mcp_or_employee_metadata_scope_does_not_allow_content PASSED [ 53%]
+tests/integration/test_security_review.py::test_credential_generation_supports_microsecond_sts_sequence PASSED [ 54%]
+tests/integration/test_security_review.py::test_host_does_not_prove_creator PASSED [ 55%]
+tests/integration/test_security_review.py::test_scoped_management_cannot_manage_entire_org PASSED [ 56%]
+tests/integration/test_security_review.py::test_disabling_ingestion_client_invalidates_cached_origin PASSED [ 57%]
+tests/integration/test_security_review.py::test_global_stop_does_not_execute_worker_jobs PASSED [ 57%]
+tests/integration/test_security_review.py::test_oauth_invitee_identity_does_not_delegate_operator_authority PASSED [ 58%]
+tests/integration/test_streaming.py::test_stream_is_bounded_charges_before_return_and_closes PASSED [ 59%]
+tests/integration/test_streaming.py::test_quota_failure_never_yields_bytes_and_always_releases PASSED [ 60%]
+tests/integration/test_streaming.py::test_truncated_upstream_is_not_a_successful_download PASSED [ 61%]
+tests/integration/test_tencent_transport.py::test_resource_transport_signs_exact_wire_uri_and_bytes PASSED [ 62%]
+tests/integration/test_tencent_transport.py::test_sts_is_required_only_for_sensitive_endpoints PASSED [ 63%]
+tests/integration/test_tencent_transport.py::test_transport_rejects_unmapped_operator_and_unknown_operation PASSED [ 63%]
+tests/integration/test_tencent_transport.py::test_upstream_errors_sanitized_no_redirect_or_fallback[response0-UPSTREAM_CONTRACT_ERROR] PASSED [ 64%]
+tests/integration/test_tencent_transport.py::test_upstream_errors_sanitized_no_redirect_or_fallback[response1-UPSTREAM_PERMISSION_DENIED] PASSED [ 65%]
+tests/integration/test_tencent_transport.py::test_upstream_errors_sanitized_no_redirect_or_fallback[response2-RATE_LIMITED] PASSED [ 66%]
+tests/integration/test_tencent_transport.py::test_upstream_errors_sanitized_no_redirect_or_fallback[response3-SOURCE_REMOVED] PASSED [ 67%]
+tests/integration/test_tencent_transport.py::test_upstream_errors_sanitized_no_redirect_or_fallback[response4-UPSTREAM_CONTRACT_ERROR] PASSED [ 68%]
+tests/integration/test_tencent_transport.py::test_creation_transport_timeout_is_uncertain PASSED [ 68%]
+tests/integration/test_tencent_transport.py::test_oauth_raw_endpoint_and_explicit_body PASSED [ 69%]
+tests/integration/test_tencent_transport.py::test_resource_body_size_limit PASSED [ 70%]
+tests/integration/test_tencent_transport.py::test_corporate_rate_limiter_is_shared_in_database PASSED [ 71%]
+tests/integration/test_worker.py::test_worker_corp_ingests_but_service_cannot_read PASSED [ 72%]
+tests/integration/test_worker.py::test_ingestion_deny_revokes_previously_cached_source PASSED [ 73%]
+tests/integration/test_worker.py::test_worker_failure_retry_and_graceful_no_work PASSED [ 73%]
+tests/integration/test_worker.py::test_maintenance_expires_private_bytes_and_confirmation PASSED [ 74%]
+tests/integration/test_worker.py::test_maintenance_sts_requests_ticket_not_fake_active PASSED [ 75%]
+tests/unit/test_core.py::test_keyring_roundtrip_and_tenant_binding PASSED [ 76%]
+tests/unit/test_core.py::test_keyring_rotation_reads_old_key PASSED      [ 77%]
+tests/unit/test_core.py::test_pkce_rfc7636_vector PASSED                 [ 78%]
+tests/unit/test_core.py::test_tokens_are_random_and_digest_only PASSED   [ 78%]
+tests/unit/test_core.py::test_cursor_is_bound_and_expires PASSED         [ 79%]
+tests/unit/test_core.py::test_tencent_signs_exact_body_bytes_and_query PASSED [ 80%]
+tests/unit/test_core.py::test_webhook_crypto_and_signature_reject_tamper PASSED [ 81%]
+tests/unit/test_core.py::test_normalize_minutes_preserves_empty_todo PASSED [ 82%]
+tests/unit/test_core.py::test_inclusive_transcript_pagination_requires_progress PASSED [ 83%]
+tests/unit/test_core.py::test_partial_transcript_cannot_finish PASSED    [ 84%]
+tests/unit/test_core.py::test_unknown_parameters_and_naive_times_rejected PASSED [ 84%]
+tests/unit/test_core.py::test_download_url_validation_blocks_ssrf PASSED [ 85%]
+tests/unit/test_core.py::test_production_refuses_sqlite_and_insecure_urls PASSED [ 86%]
+tests/unit/test_core.py::test_error_payload_never_echoes_input_secret PASSED [ 87%]
+tests/unit/test_permissions.py::test_default_deny PASSED                 [ 88%]
+tests/unit/test_permissions.py::test_org_approved_and_source_ingestion PASSED [ 89%]
+tests/unit/test_permissions.py::test_tenant_cannot_be_overridden PASSED  [ 89%]
+tests/unit/test_permissions.py::test_deny_precedes_allow PASSED          [ 90%]
+tests/unit/test_permissions.py::test_read_does_not_imply_content_or_download PASSED [ 91%]
+tests/unit/test_permissions.py::test_asset_type_restriction PASSED       [ 92%]
+tests/unit/test_permissions.py::test_expiry_and_disabled_grant PASSED    [ 93%]
+tests/unit/test_permissions.py::test_self_created_and_explicit_scope PASSED [ 94%]
+tests/unit/test_permissions.py::test_oauth_private_source_is_not_org_shared PASSED [ 94%]
+tests/unit/test_permissions.py::test_revoked_connection_denies_cached_content PASSED [ 95%]
+tests/unit/test_permissions.py::test_connection_scope_is_enforced PASSED [ 96%]
+tests/unit/test_permissions.py::test_agent_extra_scope_cannot_expand_member PASSED [ 97%]
+tests/unit/test_permissions.py::test_resource_acl_deny_cannot_be_bypassed PASSED [ 98%]
+tests/unit/test_permissions.py::test_superadmin_is_not_content_permission PASSED [ 99%]
+tests/unit/test_permissions.py::test_unknown_scope_and_untrusted_participants_deny PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/contracts/test_examples_cli.py::test_event_example_verifies_exact_bytes_and_commits_idempotently
+  <frozen importlib._bootstrap_external>:784: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f9899550400>
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /mnt/data/meeting-build/nodeskclaw-meeting/reports/junit.xml -
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.13.5-final-0 ________________
+
+Name                                              Stmts   Miss  Cover   Missing
+-------------------------------------------------------------------------------
+app/__init__.py                                       1      0   100%
+app/api/__init__.py                                   0      0   100%
+app/api/admin/__init__.py                             0      0   100%
+app/api/admin/router.py                              84     29    65%   19, 23, 27-31, 38, 42, 46, 50, 54, 58, 62, 66, 70, 74, 78, 82-87, 91, 95, 99, 103, 107, 111
+app/api/business.py                                  47     11    77%   12, 16, 25, 33, 41, 45, 49-50, 55, 59, 63
+app/api/deps.py                                      25      0   100%
+app/api/portal.py                                    76     23    70%   19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63, 71, 75, 79, 87-93, 97
+app/api/router.py                                     8      0   100%
+app/authorization/__init__.py                         0      0   100%
+app/authorization/router.py                          92     29    68%   18, 24-29, 61-62, 75, 82, 91-95, 102-112, 116-118
+app/callbacks/__init__.py                             0      0   100%
+app/callbacks/router.py                              31     13    58%   17, 21-24, 28-31, 36-39
+app/cli.py                                           43     43     0%   2-63
+app/core/__init__.py                                  0      0   100%
+app/core/config.py                                   91     15    84%   72, 76-85, 88, 92-93, 95
+app/core/database.py                                 96     21    78%   21, 35, 40-41, 54, 62-65, 92-99, 103, 107-109, 115
+app/core/errors.py                                   14      0   100%
+app/core/middleware.py                               57      4    93%   24, 33, 37, 52
+app/core/security.py                                 66      2    97%   39, 78
+app/core/types.py                                    46      0   100%
+app/integrations/__init__.py                          0      0   100%
+app/integrations/nodeskclaw_backend/__init__.py       0      0   100%
+app/integrations/nodeskclaw_backend/client.py        54     40    26%   10-12, 15-30, 34-40, 43, 46-52, 55-57, 60-64, 67
+app/integrations/tencent_meeting/__init__.py          0      0   100%
+app/integrations/tencent_meeting/client.py          104     13    88%   60-62, 87, 90, 92-94, 115-117, 130-131
+app/integrations/tencent_meeting/mapper.py           62      8    87%   10, 21-22, 30-31, 46, 52, 57
+app/integrations/tencent_meeting/signing.py           8      0   100%
+app/integrations/tencent_meeting/webhook.py          35      4    89%   23, 25-26, 34
+app/main.py                                          74     14    81%   29-30, 57, 66, 71-72, 79-82, 86-90
+app/mcp/__init__.py                                   0      0   100%
+app/mcp/server.py                                    67     13    81%   29, 31, 33, 36, 43, 47, 50, 60, 63, 72, 77, 82-83
+app/mcp/tools.py                                     53      7    87%   46-47, 66-70
+app/models/__init__.py                                6      0   100%
+app/models/applications.py                           79      0   100%
+app/models/authorization.py                          91      0   100%
+app/models/base.py                                   46      2    96%   21, 54
+app/models/events.py                                 67      0   100%
+app/models/operations.py                             74      0   100%
+app/models/resources.py                              79      0   100%
+app/runtime.py                                       76      0   100%
+app/schemas/__init__.py                               0      0   100%
+app/schemas/control.py                               54      0   100%
+app/schemas/requests.py                             126      8    94%   24, 30, 32, 55, 57, 132, 134, 136
+app/services/__init__.py                              0      0   100%
+app/services/admin_service.py                       238     83    65%   43, 126-143, 151, 158-161, 172-173, 178, 191, 196, 198, 207, 214-215, 223, 227, 241-250, 253-267, 270-282, 285-295
+app/services/audit_service.py                         6      0   100%
+app/services/auth_service.py                        235     55    77%   21, 26, 29, 34, 51, 53-55, 80-81, 89, 98-101, 103, 109, 117-120, 122, 139, 142, 148-158, 166-167, 182, 186, 188, 206, 208, 221-226, 231, 237, 240, 243-246, 248
+app/services/connection_service.py                  256     55    79%   24, 30, 39, 58, 68, 75, 84, 90, 114, 130-133, 141, 157, 161-162, 172, 183, 195, 199-214, 229, 253-256, 267, 272, 282, 305-309, 312-319
+app/services/content_service.py                     135     28    79%   29-52, 63, 69, 75, 117, 134-136, 145, 150
+app/services/diagnostic_service.py                   60     51    15%   13-69, 72-76
+app/services/download_service.py                    226     95    58%   34-35, 52, 55-60, 65, 82, 89, 97, 99, 106, 115-120, 122, 125, 135, 159, 163-165, 173, 178, 194-210, 213-216, 219-224, 227-270
+app/services/event_service.py                       228    114    50%   31, 33, 42, 54, 57, 89-108, 116-140, 145-146, 172-173, 186-188, 190-191, 194-197, 203-232, 235-248, 259-279
+app/services/job_service.py                          91     22    76%   21, 42-45, 47, 63-64, 67-68, 81, 92-100, 112-114
+app/services/maintenance_service.py                  71     20    72%   27-29, 34-44, 67, 70, 77, 86-88, 92
+app/services/meeting_service.py                     108     15    86%   57, 68-81, 111-113
+app/services/operation_service.py                   206     50    76%   24, 29, 37-38, 65, 70, 103-108, 120, 128, 138-146, 152, 163, 178, 180, 182, 192, 202, 215-217, 234-256
+app/services/permission_service.py                  150     15    90%   43-44, 135, 138, 140, 167, 186-191, 206, 209-210
+app/services/portal_service.py                       62     41    34%   26-30, 33-50, 53-57, 60-64, 67-74, 77-83
+app/services/rate_service.py                         20      1    95%   24
+app/services/sync_service.py                        180     75    58%   25, 44-45, 51-52, 54-55, 78-93, 97-101, 130-131, 137-138, 152-154, 159, 165-173, 176-190, 193-213
+app/storage/__init__.py                               0      0   100%
+app/storage/local.py                                 36      2    94%   19, 35
+app/storage/safe_http.py                             55     12    78%   27, 35, 40, 43-46, 51, 60-62, 72-73
+app/worker.py                                       116     67    42%   26-28, 34, 38-45, 60-63, 74-87, 90-107, 111-126, 130-137, 141
+-------------------------------------------------------------------------------
+TOTAL                                              4411   1100    75%
+Coverage JSON written to file reports/coverage.json
+================== 117 passed, 2 skipped, 1 warning in 49.46s ==================

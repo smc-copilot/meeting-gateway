@@ -1,0 +1,45 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_______________ test_worker_corp_ingests_but_service_cannot_read _______________
+
+rt = <app.runtime.Runtime object at 0x7fb984972660>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....self', 'meeting.sync.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_worker_corp_ingests_but_service_cannot_read(rt,human,enterprise_app_body):
+>       from app.worker import Worker
+E       ModuleNotFoundError: No module named 'app.worker'
+
+tests/integration/test_worker.py:11: ModuleNotFoundError
+_____________ test_ingestion_deny_revokes_previously_cached_source _____________
+
+rt = <app.runtime.Runtime object at 0x7fb9848abc50>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....self', 'meeting.sync.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_ingestion_deny_revokes_previously_cached_source(rt,human,enterprise_app_body):
+        _,c,p,sp=await seed(rt,human,enterprise_app_body)
+        assert (await rt.meetings.list(p))['items']
+        async with rt.db.transaction() as s:
+            s.add(AccessGrant(org_id='o1',subject_type='SERVICE',subject_id='sync-client',purpose='INGESTION',effect='DENY',
+                actions=['meeting.sync.manage'],scope_type='ORG_APPROVED',connection_ids=[c['id']],issued_by='m1',reason='Stop acquisition'))
+>       assert not (await rt.meetings.list(p))['items']
+E       AssertionError: assert not [{'connection_ref': 'f26981f4-038d-4c6c-8e46-05110f782c88', 'end_at': datetime.datetime(2026, 10, 16, 5, 49, 50, 24483, tzinfo=datetime.timezone.utc), 'host_member_id': 'm1', 'id': 'meeting1', ...}]
+
+tests/integration/test_worker.py:36: AssertionError
+________________ test_worker_failure_retry_and_graceful_no_work ________________
+
+rt = <app.runtime.Runtime object at 0x7fb9847f79d0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....self', 'meeting.sync.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_worker_failure_retry_and_graceful_no_work(rt,human,enterprise_app_body):
+>       from app.worker import Worker
+E       ModuleNotFoundError: No module named 'app.worker'
+
+tests/integration/test_worker.py:39: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_worker.py::test_worker_corp_ingests_but_service_cannot_read - ModuleNotFoundError: No module named 'app.worker'
+FAILED tests/integration/test_worker.py::test_ingestion_deny_revokes_previously_cached_source - AssertionError: assert not [{'connection_ref': 'f26981f4-038d-4c6c-8e46-05110f782c88', 'end_at': datetime.datetime(2026, 10, 16, 5, 49, 50, 24483, tzinfo=datetime.timezone.utc), 'host_member_id': 'm1', 'id': 'meeting1', ...}]
+FAILED tests/integration/test_worker.py::test_worker_failure_retry_and_graceful_no_work - ModuleNotFoundError: No module named 'app.worker'
+3 failed in 1.28s

@@ -1,0 +1,113 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+___________________ test_native_ticket_is_bound_not_url_leak ___________________
+
+rt = <app.runtime.Runtime object at 0x7fb99032e510>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_native_ticket_is_bound_not_url_leak(rt,human,enterprise_app_body):
+        c,p=await asset_seed(rt,human,enterprise_app_body)
+>       result=await rt.downloads.issue(p,'text1','Business review')
+                     ^^^^^^^^^^^^
+
+tests/integration/test_downloads.py:21: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fb99032e510>
+
+    @cached_property
+    def downloads(self):
+>       from app.services.download_service import DownloadService
+E       ModuleNotFoundError: No module named 'app.services.download_service'
+
+app/runtime.py:68: ModuleNotFoundError
+_________________ test_download_rechecks_revocation_and_expiry _________________
+
+rt = <app.runtime.Runtime object at 0x7fb983eee210>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_download_rechecks_revocation_and_expiry(rt,human,enterprise_app_body):
+>       c,p=await asset_seed(rt,human,enterprise_app_body);result=await rt.downloads.issue(p,'text1','Review')
+                                                                        ^^^^^^^^^^^^
+
+tests/integration/test_downloads.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fb983eee210>
+
+    @cached_property
+    def downloads(self):
+>       from app.services.download_service import DownloadService
+E       ModuleNotFoundError: No module named 'app.services.download_service'
+
+app/runtime.py:68: ModuleNotFoundError
+___________ test_private_url_and_unavailable_native_export_rejected ____________
+
+rt = <app.runtime.Runtime object at 0x7fb983c78190>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_private_url_and_unavailable_native_export_rejected(rt,human,enterprise_app_body):
+        c,p=await asset_seed(rt,human,enterprise_app_body)
+        rt.tencent.response={'record_detail':{'meeting_summary':[{'download_address':'http://127.0.0.1/a','file_type':'txt'}]}}
+>       with pytest.raises(MeetingError,match='SSRF_BLOCKED'):await rt.downloads.issue(p,'text1','Review')
+                                                                    ^^^^^^^^^^^^
+
+tests/integration/test_downloads.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fb983c78190>
+
+    @cached_property
+    def downloads(self):
+>       from app.services.download_service import DownloadService
+E       ModuleNotFoundError: No module named 'app.services.download_service'
+
+app/runtime.py:68: ModuleNotFoundError
+________________ test_stream_quota_and_single_range_validation _________________
+
+rt = <app.runtime.Runtime object at 0x7fb983cea650>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_stream_quota_and_single_range_validation(rt,human,enterprise_app_body):
+        c,p=await asset_seed(rt,human,enterprise_app_body)
+        rt.settings.daily_download_bytes_per_client=100
+>       result=await rt.downloads.issue(p,'text1','Review')
+                     ^^^^^^^^^^^^
+
+tests/integration/test_downloads.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fb983cea650>
+
+    @cached_property
+    def downloads(self):
+>       from app.services.download_service import DownloadService
+E       ModuleNotFoundError: No module named 'app.services.download_service'
+
+app/runtime.py:68: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_downloads.py::test_native_ticket_is_bound_not_url_leak - ModuleNotFoundError: No module named 'app.services.download_service'
+FAILED tests/integration/test_downloads.py::test_download_rechecks_revocation_and_expiry - ModuleNotFoundError: No module named 'app.services.download_service'
+FAILED tests/integration/test_downloads.py::test_private_url_and_unavailable_native_export_rejected - ModuleNotFoundError: No module named 'app.services.download_service'
+FAILED tests/integration/test_downloads.py::test_stream_quota_and_single_range_validation - ModuleNotFoundError: No module named 'app.services.download_service'
+4 failed in 4.27s

@@ -1,0 +1,319 @@
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+______________ test_creation_prepare_is_cross_protocol_idempotent ______________
+
+rt = <app.runtime.Runtime object at 0x7f425a452510>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.sync.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_creation_prepare_is_cross_protocol_idempotent(rt,human,enterprise_app_body):
+        _,c,p,_=await seed(rt,human,enterprise_app_body);body=request(c)
+>       rows=await asyncio.gather(*(rt.operations.prepare(p,body,'business-1') for _ in range(12)))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_operations.py:18: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/operation_service.py:88: in prepare
+    confirm_deadline=utcnow()+timedelta(seconds=self.rt.settings.confirmation_ttl_seconds))
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(environment='test', database_url='sqlite:////tmp/pytest-of-root/pytest-15/test_creation_prepare_is_cross0/mee...30, audit_retention_days=180, diagnostic_retention_days=7, maintenance_interval_seconds=3600, max_http_concurrency=100)
+item = 'confirmation_ttl_seconds'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+
+/opt/pyvenv/lib/python3.13/site-packages/pydantic/main.py:1042: AttributeError
+______________ test_confirm_only_trusted_owner_then_execute_once _______________
+
+rt = <app.runtime.Runtime object at 0x7f425a15aad0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.sync.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_confirm_only_trusted_owner_then_execute_once(rt,human,enterprise_app_body):
+>       _,c,p,_=await seed(rt,human,enterprise_app_body);op=await rt.operations.prepare(p,request(c),'business-2')
+                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_operations.py:26: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/operation_service.py:88: in prepare
+    confirm_deadline=utcnow()+timedelta(seconds=self.rt.settings.confirmation_ttl_seconds))
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(environment='test', database_url='sqlite:////tmp/pytest-of-root/pytest-15/test_confirm_only_trusted_owne0/mee...30, audit_retention_days=180, diagnostic_retention_days=7, maintenance_interval_seconds=3600, max_http_concurrency=100)
+item = 'confirmation_ttl_seconds'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+
+/opt/pyvenv/lib/python3.13/site-packages/pydantic/main.py:1042: AttributeError
+__________________ test_confirm_hash_and_policy_changes_block __________________
+
+rt = <app.runtime.Runtime object at 0x7f4259e51450>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.sync.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_confirm_hash_and_policy_changes_block(rt,human,enterprise_app_body):
+>       _,c,p,_=await seed(rt,human,enterprise_app_body);op=await rt.operations.prepare(p,request(c),'policy-1')
+                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_operations.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/operation_service.py:88: in prepare
+    confirm_deadline=utcnow()+timedelta(seconds=self.rt.settings.confirmation_ttl_seconds))
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(environment='test', database_url='sqlite:////tmp/pytest-of-root/pytest-15/test_confirm_hash_and_policy_c0/mee...30, audit_retention_days=180, diagnostic_retention_days=7, maintenance_interval_seconds=3600, max_http_concurrency=100)
+item = 'confirmation_ttl_seconds'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+
+/opt/pyvenv/lib/python3.13/site-packages/pydantic/main.py:1042: AttributeError
+__________________ test_upstream_timeout_unknown_never_retry ___________________
+
+rt = <app.runtime.Runtime object at 0x7f4259f1b230>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.sync.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_upstream_timeout_unknown_never_retry(rt,human,enterprise_app_body):
+>       _,c,p,_=await seed(rt,human,enterprise_app_body);op=await rt.operations.prepare(p,request(c),'unknown-1')
+                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_operations.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/operation_service.py:88: in prepare
+    confirm_deadline=utcnow()+timedelta(seconds=self.rt.settings.confirmation_ttl_seconds))
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(environment='test', database_url='sqlite:////tmp/pytest-of-root/pytest-15/test_upstream_timeout_unknown_0/mee...30, audit_retention_days=180, diagnostic_retention_days=7, maintenance_interval_seconds=3600, max_http_concurrency=100)
+item = 'confirmation_ttl_seconds'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+
+/opt/pyvenv/lib/python3.13/site-packages/pydantic/main.py:1042: AttributeError
+_____________ test_revocation_between_confirm_and_execution_blocks _____________
+
+rt = <app.runtime.Runtime object at 0x7f4259be6060>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.sync.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_revocation_between_confirm_and_execution_blocks(rt,human,enterprise_app_body):
+>       _,c,p,_=await seed(rt,human,enterprise_app_body);op=await rt.operations.prepare(p,request(c),'revoked-1')
+                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_operations.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/operation_service.py:88: in prepare
+    confirm_deadline=utcnow()+timedelta(seconds=self.rt.settings.confirmation_ttl_seconds))
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(environment='test', database_url='sqlite:////tmp/pytest-of-root/pytest-15/test_revocation_between_confir0/mee...30, audit_retention_days=180, diagnostic_retention_days=7, maintenance_interval_seconds=3600, max_http_concurrency=100)
+item = 'confirmation_ttl_seconds'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+
+/opt/pyvenv/lib/python3.13/site-packages/pydantic/main.py:1042: AttributeError
+_______________ test_no_service_creation_no_expired_confirmation _______________
+
+rt = <app.runtime.Runtime object at 0x7f4259cbf0b0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....read', 'meeting.sync.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_no_service_creation_no_expired_confirmation(rt,human,enterprise_app_body):
+        _,c,p,sp=await seed(rt,human,enterprise_app_body)
+        with pytest.raises(MeetingError):await rt.operations.prepare(sp,request(c),'service')
+>       op=await rt.operations.prepare(p,request(c),'expired')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_operations.py:74: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/operation_service.py:88: in prepare
+    confirm_deadline=utcnow()+timedelta(seconds=self.rt.settings.confirmation_ttl_seconds))
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(environment='test', database_url='sqlite:////tmp/pytest-of-root/pytest-15/test_no_service_creation_no_ex0/mee...30, audit_retention_days=180, diagnostic_retention_days=7, maintenance_interval_seconds=3600, max_http_concurrency=100)
+item = 'confirmation_ttl_seconds'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+
+/opt/pyvenv/lib/python3.13/site-packages/pydantic/main.py:1042: AttributeError
+=========================== short test summary info ============================
+FAILED tests/integration/test_operations.py::test_creation_prepare_is_cross_protocol_idempotent - AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+FAILED tests/integration/test_operations.py::test_confirm_only_trusted_owner_then_execute_once - AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+FAILED tests/integration/test_operations.py::test_confirm_hash_and_policy_changes_block - AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+FAILED tests/integration/test_operations.py::test_upstream_timeout_unknown_never_retry - AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+FAILED tests/integration/test_operations.py::test_revocation_between_confirm_and_execution_blocks - AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+FAILED tests/integration/test_operations.py::test_no_service_creation_no_expired_confirmation - AttributeError: 'Settings' object has no attribute 'confirmation_ttl_seconds'. Did you mean: 'confirmation_seconds'?
+6 failed in 2.61s

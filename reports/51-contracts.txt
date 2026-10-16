@@ -1,0 +1,1 @@
+Contracts generated from registered routes and tool definitions.

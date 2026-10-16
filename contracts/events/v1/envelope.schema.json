@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "resource_id",
+    "occurred_at"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string"
+    },
+    "event_type": {
+      "enum": [
+        "meeting.asset.ready",
+        "meeting.authorization.revoked",
+        "meeting.create.succeeded",
+        "meeting.create.unknown",
+        "meeting.resource.invalidated",
+        "meeting.synced"
+      ]
+    },
+    "resource_id": {
+      "type": "string"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "version": {
+      "type": "integer"
+    },
+    "state": {
+      "type": "string"
+    },
+    "asset_type": {
+      "type": "string"
+    },
+    "trace_id": {
+      "type": "string"
+    }
+  }
+}

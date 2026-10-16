@@ -1,0 +1,312 @@
+FFFFFFFFFFFF                                                             [100%]
+=================================== FAILURES ===================================
+____________ test_resource_transport_signs_exact_wire_uri_and_bytes ____________
+
+rt = <app.runtime.Runtime object at 0x7f8c4c236900>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_resource_transport_signs_exact_wire_uri_and_bytes(rt,human,enterprise_app_body):
+        a,c=await prepare(rt,human,enterprise_app_body)
+        seen=[]
+        def handler(request):
+            seen.append(request)
+            return httpx.Response(200,json={'meeting_info_list':[],'remaining':0})
+>       client=await actual_transport(rt,handler)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:27: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c4c236900>
+handler = <function test_resource_transport_signs_exact_wire_uri_and_bytes.<locals>.handler at 0x7f8c3fd1bf60>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+______________ test_sts_is_required_only_for_sensitive_endpoints _______________
+
+rt = <app.runtime.Runtime object at 0x7f8c3ff7a710>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_sts_is_required_only_for_sensitive_endpoints(rt,human,enterprise_app_body):
+        a,c=await prepare(rt,human,enterprise_app_body)
+        seen=[]
+>       client=await actual_transport(rt,lambda request:(seen.append(request) or httpx.Response(200,json={})))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c3ff7a710>
+handler = <function test_sts_is_required_only_for_sensitive_endpoints.<locals>.<lambda> at 0x7f8c4c128a40>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+________ test_transport_rejects_unmapped_operator_and_unknown_operation ________
+
+rt = <app.runtime.Runtime object at 0x7f8c3fd90550>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_transport_rejects_unmapped_operator_and_unknown_operation(rt,human,enterprise_app_body):
+        a,c=await prepare(rt,human,enterprise_app_body)
+>       seen=[];client=await actual_transport(rt,lambda request:(seen.append(request) or httpx.Response(200,json={})))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c3fd90550>
+handler = <function test_transport_rejects_unmapped_operator_and_unknown_operation.<locals>.<lambda> at 0x7f8c3fc567a0>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+_ test_upstream_errors_sanitized_no_redirect_or_fallback[response0-UPSTREAM_CONTRACT_ERROR] _
+
+rt = <app.runtime.Runtime object at 0x7f8c3fed7360>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+response = <Response [302 Found]>, reason = 'UPSTREAM_CONTRACT_ERROR'
+
+    @pytest.mark.parametrize('response,reason',[
+        (httpx.Response(302,headers={'Location':'https://evil.example'}),'UPSTREAM_CONTRACT_ERROR'),
+        (httpx.Response(400,json={'error_info':{'error_code':500014,'message':'SECRET-UPSTREAM'}}),'UPSTREAM_PERMISSION_DENIED'),
+        (httpx.Response(500,json={'error_info':{'error_code':190310}}),'RATE_LIMITED'),
+        (httpx.Response(500,json={'error_info':{'error_code':4051}}),'SOURCE_REMOVED'),
+        (httpx.Response(200,text='not json'),'UPSTREAM_CONTRACT_ERROR'),
+    ])
+    async def test_upstream_errors_sanitized_no_redirect_or_fallback(rt,human,enterprise_app_body,response,reason):
+        a,c=await prepare(rt,human,enterprise_app_body)
+>       seen=[];client=await actual_transport(rt,lambda request:(seen.append(request) or response))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c3fed7360>
+handler = <function test_upstream_errors_sanitized_no_redirect_or_fallback.<locals>.<lambda> at 0x7f8c3fcd6ca0>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+_ test_upstream_errors_sanitized_no_redirect_or_fallback[response1-UPSTREAM_PERMISSION_DENIED] _
+
+rt = <app.runtime.Runtime object at 0x7f8c3fcbde00>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+response = <Response [400 Bad Request]>, reason = 'UPSTREAM_PERMISSION_DENIED'
+
+    @pytest.mark.parametrize('response,reason',[
+        (httpx.Response(302,headers={'Location':'https://evil.example'}),'UPSTREAM_CONTRACT_ERROR'),
+        (httpx.Response(400,json={'error_info':{'error_code':500014,'message':'SECRET-UPSTREAM'}}),'UPSTREAM_PERMISSION_DENIED'),
+        (httpx.Response(500,json={'error_info':{'error_code':190310}}),'RATE_LIMITED'),
+        (httpx.Response(500,json={'error_info':{'error_code':4051}}),'SOURCE_REMOVED'),
+        (httpx.Response(200,text='not json'),'UPSTREAM_CONTRACT_ERROR'),
+    ])
+    async def test_upstream_errors_sanitized_no_redirect_or_fallback(rt,human,enterprise_app_body,response,reason):
+        a,c=await prepare(rt,human,enterprise_app_body)
+>       seen=[];client=await actual_transport(rt,lambda request:(seen.append(request) or response))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c3fcbde00>
+handler = <function test_upstream_errors_sanitized_no_redirect_or_fallback.<locals>.<lambda> at 0x7f8c3fb21e40>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+_ test_upstream_errors_sanitized_no_redirect_or_fallback[response2-RATE_LIMITED] _
+
+rt = <app.runtime.Runtime object at 0x7f8c3fb95370>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+response = <Response [500 Internal Server Error]>, reason = 'RATE_LIMITED'
+
+    @pytest.mark.parametrize('response,reason',[
+        (httpx.Response(302,headers={'Location':'https://evil.example'}),'UPSTREAM_CONTRACT_ERROR'),
+        (httpx.Response(400,json={'error_info':{'error_code':500014,'message':'SECRET-UPSTREAM'}}),'UPSTREAM_PERMISSION_DENIED'),
+        (httpx.Response(500,json={'error_info':{'error_code':190310}}),'RATE_LIMITED'),
+        (httpx.Response(500,json={'error_info':{'error_code':4051}}),'SOURCE_REMOVED'),
+        (httpx.Response(200,text='not json'),'UPSTREAM_CONTRACT_ERROR'),
+    ])
+    async def test_upstream_errors_sanitized_no_redirect_or_fallback(rt,human,enterprise_app_body,response,reason):
+        a,c=await prepare(rt,human,enterprise_app_body)
+>       seen=[];client=await actual_transport(rt,lambda request:(seen.append(request) or response))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c3fb95370>
+handler = <function test_upstream_errors_sanitized_no_redirect_or_fallback.<locals>.<lambda> at 0x7f8c3fbb6340>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+_ test_upstream_errors_sanitized_no_redirect_or_fallback[response3-SOURCE_REMOVED] _
+
+rt = <app.runtime.Runtime object at 0x7f8c3fa28e20>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+response = <Response [500 Internal Server Error]>, reason = 'SOURCE_REMOVED'
+
+    @pytest.mark.parametrize('response,reason',[
+        (httpx.Response(302,headers={'Location':'https://evil.example'}),'UPSTREAM_CONTRACT_ERROR'),
+        (httpx.Response(400,json={'error_info':{'error_code':500014,'message':'SECRET-UPSTREAM'}}),'UPSTREAM_PERMISSION_DENIED'),
+        (httpx.Response(500,json={'error_info':{'error_code':190310}}),'RATE_LIMITED'),
+        (httpx.Response(500,json={'error_info':{'error_code':4051}}),'SOURCE_REMOVED'),
+        (httpx.Response(200,text='not json'),'UPSTREAM_CONTRACT_ERROR'),
+    ])
+    async def test_upstream_errors_sanitized_no_redirect_or_fallback(rt,human,enterprise_app_body,response,reason):
+        a,c=await prepare(rt,human,enterprise_app_body)
+>       seen=[];client=await actual_transport(rt,lambda request:(seen.append(request) or response))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c3fa28e20>
+handler = <function test_upstream_errors_sanitized_no_redirect_or_fallback.<locals>.<lambda> at 0x7f8c3fa86980>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+_ test_upstream_errors_sanitized_no_redirect_or_fallback[response4-UPSTREAM_CONTRACT_ERROR] _
+
+rt = <app.runtime.Runtime object at 0x7f8c3fad48d0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+response = <Response [200 OK]>, reason = 'UPSTREAM_CONTRACT_ERROR'
+
+    @pytest.mark.parametrize('response,reason',[
+        (httpx.Response(302,headers={'Location':'https://evil.example'}),'UPSTREAM_CONTRACT_ERROR'),
+        (httpx.Response(400,json={'error_info':{'error_code':500014,'message':'SECRET-UPSTREAM'}}),'UPSTREAM_PERMISSION_DENIED'),
+        (httpx.Response(500,json={'error_info':{'error_code':190310}}),'RATE_LIMITED'),
+        (httpx.Response(500,json={'error_info':{'error_code':4051}}),'SOURCE_REMOVED'),
+        (httpx.Response(200,text='not json'),'UPSTREAM_CONTRACT_ERROR'),
+    ])
+    async def test_upstream_errors_sanitized_no_redirect_or_fallback(rt,human,enterprise_app_body,response,reason):
+        a,c=await prepare(rt,human,enterprise_app_body)
+>       seen=[];client=await actual_transport(rt,lambda request:(seen.append(request) or response))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c3fad48d0>
+handler = <function test_upstream_errors_sanitized_no_redirect_or_fallback.<locals>.<lambda> at 0x7f8c3faeefc0>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+_________________ test_creation_transport_timeout_is_uncertain _________________
+
+rt = <app.runtime.Runtime object at 0x7f8c3f970450>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_creation_transport_timeout_is_uncertain(rt,human,enterprise_app_body):
+        a,c=await prepare(rt,human,enterprise_app_body)
+        def handler(request):raise httpx.ReadTimeout('not exposed')
+>       client=await actual_transport(rt,handler)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:74: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c3f970450>
+handler = <function test_creation_transport_timeout_is_uncertain.<locals>.handler at 0x7f8c3f99e8e0>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+__________________ test_oauth_raw_endpoint_and_explicit_body ___________________
+
+rt = <app.runtime.Runtime object at 0x7f8c3f972a50>
+
+    async def test_oauth_raw_endpoint_and_explicit_body(rt):
+        requests=[]
+>       client=await actual_transport(rt,lambda request:(requests.append(request) or httpx.Response(200,json={'code':0,'data':{'open_id':'x'}})))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:82: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c3f972a50>
+handler = <function test_oauth_raw_endpoint_and_explicit_body.<locals>.<lambda> at 0x7f8c3f94cc20>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+________________________ test_resource_body_size_limit _________________________
+
+rt = <app.runtime.Runtime object at 0x7f8c3f9f8500>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g....run', 'meeting.content.read'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_resource_body_size_limit(rt,human,enterprise_app_body):
+        a,c=await prepare(rt,human,enterprise_app_body)
+        rt.settings.max_upstream_json_bytes=1024
+>       client=await actual_transport(rt,lambda request:httpx.Response(200,content=b'{"padding":"'+b'x'*2048+b'"}'))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_tencent_transport.py:91: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+rt = <app.runtime.Runtime object at 0x7f8c3f9f8500>
+handler = <function test_resource_body_size_limit.<locals>.<lambda> at 0x7f8c3f811080>
+
+    async def actual_transport(rt, handler):
+>       from app.integrations.tencent_meeting.client import TencentClient
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+
+tests/integration/test_tencent_transport.py:13: ModuleNotFoundError
+______________ test_corporate_rate_limiter_is_shared_in_database _______________
+
+rt = <app.runtime.Runtime object at 0x7f8c3f9fbe30>
+
+    async def test_corporate_rate_limiter_is_shared_in_database(rt):
+>       from app.services.rate_service import RateService
+E       ModuleNotFoundError: No module named 'app.services.rate_service'
+
+tests/integration/test_tencent_transport.py:97: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_tencent_transport.py::test_resource_transport_signs_exact_wire_uri_and_bytes - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_sts_is_required_only_for_sensitive_endpoints - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_transport_rejects_unmapped_operator_and_unknown_operation - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_upstream_errors_sanitized_no_redirect_or_fallback[response0-UPSTREAM_CONTRACT_ERROR] - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_upstream_errors_sanitized_no_redirect_or_fallback[response1-UPSTREAM_PERMISSION_DENIED] - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_upstream_errors_sanitized_no_redirect_or_fallback[response2-RATE_LIMITED] - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_upstream_errors_sanitized_no_redirect_or_fallback[response3-SOURCE_REMOVED] - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_upstream_errors_sanitized_no_redirect_or_fallback[response4-UPSTREAM_CONTRACT_ERROR] - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_creation_transport_timeout_is_uncertain - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_oauth_raw_endpoint_and_explicit_body - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_resource_body_size_limit - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.client'
+FAILED tests/integration/test_tencent_transport.py::test_corporate_rate_limiter_is_shared_in_database - ModuleNotFoundError: No module named 'app.services.rate_service'
+12 failed in 4.46s

@@ -1,0 +1,14 @@
+nodeskclaw-meeting 1.0.0rc1
+
+An independent Tencent Meeting application and permission gateway extension for
+loudon84/nodeskclaw. Repository structure and integration interfaces were examined
+at commit 83edfb0d97f07920deb8bb9ce44a91e3e32cc3af. The upstream repository uses the
+Apache License, Version 2.0. Preserve upstream notices when integrating this code.
+
+This archive contains newly produced extension code, tests, integration modules,
+and design documents. It does not bundle Tencent software, upstream credentials,
+Python/npm dependencies, font files, or the full NoDeskClaw repository.
+
+Tencent Meeting names and service interfaces remain associated with their
+respective owners. No affiliation, certification, Tencent account entitlement,
+or endorsement is represented by this source distribution.

@@ -1,0 +1,116 @@
+FFFFFFFFFFFFFF                                                           [100%]
+=================================== FAILURES ===================================
+__________________ test_keyring_roundtrip_and_tenant_binding ___________________
+
+    def test_keyring_roundtrip_and_tenant_binding():
+>       from app.core.security import KeyRing
+E       ModuleNotFoundError: No module named 'app.core.security'
+
+tests/unit/test_core.py:12: ModuleNotFoundError
+_____________________ test_keyring_rotation_reads_old_key ______________________
+
+    def test_keyring_rotation_reads_old_key():
+>       from app.core.security import KeyRing
+E       ModuleNotFoundError: No module named 'app.core.security'
+
+tests/unit/test_core.py:23: ModuleNotFoundError
+___________________________ test_pkce_rfc7636_vector ___________________________
+
+    def test_pkce_rfc7636_vector():
+>       from app.core.security import pkce_challenge, verify_pkce
+E       ModuleNotFoundError: No module named 'app.core.security'
+
+tests/unit/test_core.py:31: ModuleNotFoundError
+____________________ test_tokens_are_random_and_digest_only ____________________
+
+    def test_tokens_are_random_and_digest_only():
+>       from app.core.security import digest, random_token
+E       ModuleNotFoundError: No module named 'app.core.security'
+
+tests/unit/test_core.py:40: ModuleNotFoundError
+_______________________ test_cursor_is_bound_and_expires _______________________
+
+    def test_cursor_is_bound_and_expires():
+>       from app.core.security import CursorCodec
+E       ModuleNotFoundError: No module named 'app.core.security'
+
+tests/unit/test_core.py:47: ModuleNotFoundError
+________________ test_tencent_signs_exact_body_bytes_and_query _________________
+
+    def test_tencent_signs_exact_body_bytes_and_query():
+>       from app.integrations.tencent_meeting.signing import sign_request
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.signing'
+
+tests/unit/test_core.py:61: ModuleNotFoundError
+_______________ test_webhook_crypto_and_signature_reject_tamper ________________
+
+    def test_webhook_crypto_and_signature_reject_tamper():
+>       from app.integrations.tencent_meeting.webhook import encrypt_fixture, decrypt_message, callback_signature, verify_callback
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.webhook'
+
+tests/unit/test_core.py:70: ModuleNotFoundError
+_________________ test_normalize_minutes_preserves_empty_todo __________________
+
+    def test_normalize_minutes_preserves_empty_todo():
+>       from app.integrations.tencent_meeting.mapper import normalize_minutes
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.mapper'
+
+tests/unit/test_core.py:82: ModuleNotFoundError
+____________ test_inclusive_transcript_pagination_requires_progress ____________
+
+    def test_inclusive_transcript_pagination_requires_progress():
+>       from app.integrations.tencent_meeting.mapper import TranscriptCollector
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.mapper'
+
+tests/unit/test_core.py:91: ModuleNotFoundError
+____________________ test_partial_transcript_cannot_finish _____________________
+
+    def test_partial_transcript_cannot_finish():
+>       from app.integrations.tencent_meeting.mapper import TranscriptCollector
+E       ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.mapper'
+
+tests/unit/test_core.py:106: ModuleNotFoundError
+_______________ test_unknown_parameters_and_naive_times_rejected _______________
+
+    def test_unknown_parameters_and_naive_times_rejected():
+>       from app.schemas.requests import MeetingCreate
+E       ModuleNotFoundError: No module named 'app.schemas.requests'
+
+tests/unit/test_core.py:115: ModuleNotFoundError
+___________________ test_download_url_validation_blocks_ssrf ___________________
+
+    def test_download_url_validation_blocks_ssrf():
+>       from app.storage.safe_http import validate_url, validate_ips
+E       ModuleNotFoundError: No module named 'app.storage.safe_http'
+
+tests/unit/test_core.py:128: ModuleNotFoundError
+_______________ test_production_refuses_sqlite_and_insecure_urls _______________
+
+    def test_production_refuses_sqlite_and_insecure_urls():
+>       from app.core.config import Settings
+E       ModuleNotFoundError: No module named 'app.core.config'
+
+tests/unit/test_core.py:140: ModuleNotFoundError
+_________________ test_error_payload_never_echoes_input_secret _________________
+
+    def test_error_payload_never_echoes_input_secret():
+>       from app.core.errors import MeetingError
+E       ModuleNotFoundError: No module named 'app.core.errors'
+
+tests/unit/test_core.py:147: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/unit/test_core.py::test_keyring_roundtrip_and_tenant_binding - ModuleNotFoundError: No module named 'app.core.security'
+FAILED tests/unit/test_core.py::test_keyring_rotation_reads_old_key - ModuleNotFoundError: No module named 'app.core.security'
+FAILED tests/unit/test_core.py::test_pkce_rfc7636_vector - ModuleNotFoundError: No module named 'app.core.security'
+FAILED tests/unit/test_core.py::test_tokens_are_random_and_digest_only - ModuleNotFoundError: No module named 'app.core.security'
+FAILED tests/unit/test_core.py::test_cursor_is_bound_and_expires - ModuleNotFoundError: No module named 'app.core.security'
+FAILED tests/unit/test_core.py::test_tencent_signs_exact_body_bytes_and_query - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.signing'
+FAILED tests/unit/test_core.py::test_webhook_crypto_and_signature_reject_tamper - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.webhook'
+FAILED tests/unit/test_core.py::test_normalize_minutes_preserves_empty_todo - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.mapper'
+FAILED tests/unit/test_core.py::test_inclusive_transcript_pagination_requires_progress - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.mapper'
+FAILED tests/unit/test_core.py::test_partial_transcript_cannot_finish - ModuleNotFoundError: No module named 'app.integrations.tencent_meeting.mapper'
+FAILED tests/unit/test_core.py::test_unknown_parameters_and_naive_times_rejected - ModuleNotFoundError: No module named 'app.schemas.requests'
+FAILED tests/unit/test_core.py::test_download_url_validation_blocks_ssrf - ModuleNotFoundError: No module named 'app.storage.safe_http'
+FAILED tests/unit/test_core.py::test_production_refuses_sqlite_and_insecure_urls - ModuleNotFoundError: No module named 'app.core.config'
+FAILED tests/unit/test_core.py::test_error_payload_never_echoes_input_secret - ModuleNotFoundError: No module named 'app.core.errors'
+14 failed in 0.21s

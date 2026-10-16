@@ -1,0 +1,25 @@
+{
+  "python_compile": {
+    "directories": [
+      "app",
+      "integration/backend",
+      "scripts",
+      "examples"
+    ],
+    "result": "PASS"
+  },
+  "openapi": [
+    {
+      "path": "contracts/internal-rest/v1/openapi.json",
+      "paths": 66,
+      "local_references": "resolved"
+    },
+    {
+      "path": "contracts/frontend/v1/openapi.json",
+      "paths": 53,
+      "local_references": "resolved"
+    }
+  ],
+  "mcp_tool_schemas": 7,
+  "event_schema": "PASS"
+}

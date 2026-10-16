@@ -1,0 +1,161 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+________________ test_webhook_exact_challenge_and_replay_dedup _________________
+
+rt = <app.runtime.Runtime object at 0x7f3a4341a510>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_webhook_exact_challenge_and_replay_dedup(rt,human,enterprise_app_body):
+        a,c=await prepare(rt,human,enterprise_app_body)
+        text=encrypt_fixture(b'raw-verification-value',enterprise_app_body.webhook_encoding_key)
+        headers={'timestamp':'1750000000000','nonce':'n','signature':callback_signature('callback-token-test','1750000000000','n',text)}
+>       assert await rt.events.challenge(a['receiver_id'],text,headers)==b'raw-verification-value'
+                     ^^^^^^^^^
+
+tests/integration/test_events.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7f3a4341a510>
+
+    @cached_property
+    def events(self):
+>       from app.services.event_service import EventService
+E       ModuleNotFoundError: No module named 'app.services.event_service'
+
+app/runtime.py:72: ModuleNotFoundError
+______________________ test_forged_callback_not_persisted ______________________
+
+rt = <app.runtime.Runtime object at 0x7f3a43092210>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_forged_callback_not_persisted(rt,human,enterprise_app_body):
+        a,c=await prepare(rt,human,enterprise_app_body)
+        data,h=callback({'event':'common.sts-token','payload':[]},enterprise_app_body.webhook_encoding_key)
+        h['signature']='bad'
+>       with pytest.raises(MeetingError):await rt.events.receive(a['receiver_id'],data,h)
+                                               ^^^^^^^^^
+
+tests/integration/test_events.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7f3a43092210>
+
+    @cached_property
+    def events(self):
+>       from app.services.event_service import EventService
+E       ModuleNotFoundError: No module named 'app.services.event_service'
+
+app/runtime.py:72: ModuleNotFoundError
+_______________ test_sts_worker_no_sensitive_payload_in_summary ________________
+
+rt = <app.runtime.Runtime object at 0x7f3a42f78050>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_sts_worker_no_sensitive_payload_in_summary(rt,human,enterprise_app_body):
+        a,c=await prepare(rt,human,enterprise_app_body)
+        rt._provider.response={'sts':{'req_id':'request-from-api'}}
+        await rt.connections.request_sts(human,c['id'])
+        body={'event':'common.sts-token','trace_id':'sts-event','payload':[{'operate_time':1750000000000,
+            'operator':{'userid':'external-m1'},'token_info':{'req_id':'request-from-api','sts_token':'sensitive-ticket-never-log',
+            'expire_ts':int((utcnow()+timedelta(hours=6)).timestamp())}}]}
+        data,h=callback(body,enterprise_app_body.webhook_encoding_key)
+>       inbox=await rt.events.receive(a['receiver_id'],data,h)
+                    ^^^^^^^^^
+
+tests/integration/test_events.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7f3a42f78050>
+
+    @cached_property
+    def events(self):
+>       from app.services.event_service import EventService
+E       ModuleNotFoundError: No module named 'app.services.event_service'
+
+app/runtime.py:72: ModuleNotFoundError
+______________ test_outbox_same_transaction_and_no_title_or_body _______________
+
+rt = <app.runtime.Runtime object at 0x7f3a42f82520>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_outbox_same_transaction_and_no_title_or_body(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        async with rt.db.transaction() as s:
+            s.add(Subscription(id='subscription',org_id='o1',client_id='employee-client',member_id='m1',
+                destination='https://notify.example.org/events',secret_ciphertext=rt.keys.encrypt('notification-key','subscription:o1:subscription'),
+                event_types=['meeting.synced'],enabled=True))
+        with pytest.raises(RuntimeError):
+            async with rt.db.transaction() as s:
+>               await rt.events.publish('meeting.synced','o1','meeting1',{'subject':'PRIVATE TITLE','body':'PRIVATE BODY'},session=s)
+                      ^^^^^^^^^
+
+tests/integration/test_events.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7f3a42f82520>
+
+    @cached_property
+    def events(self):
+>       from app.services.event_service import EventService
+E       ModuleNotFoundError: No module named 'app.services.event_service'
+
+app/runtime.py:72: ModuleNotFoundError
+______________ test_invalidation_only_for_previously_delivered_id ______________
+
+rt = <app.runtime.Runtime object at 0x7f3a42d4cfc0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_invalidation_only_for_previously_delivered_id(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        async with rt.db.transaction() as s:
+            sub=Subscription(id='subscription',org_id='o1',client_id='employee-client',member_id='m1',destination='https://notify.example.org/events',
+                secret_ciphertext='cipher',event_types=['meeting.resource.invalidated'],enabled=True);s.add(sub)
+            s.add(DeliveredResource(org_id='o1',subscription_id=sub.id,resource_id='previously-seen',last_delivered_at=utcnow()))
+        async with rt.db.session() as s:
+            sub=await s.get(Subscription,'subscription')
+>           assert await rt.events.can_deliver(s,sub,'meeting.resource.invalidated','previously-seen')
+                         ^^^^^^^^^
+
+tests/integration/test_events.py:92: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7f3a42d4cfc0>
+
+    @cached_property
+    def events(self):
+>       from app.services.event_service import EventService
+E       ModuleNotFoundError: No module named 'app.services.event_service'
+
+app/runtime.py:72: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_events.py::test_webhook_exact_challenge_and_replay_dedup - ModuleNotFoundError: No module named 'app.services.event_service'
+FAILED tests/integration/test_events.py::test_forged_callback_not_persisted - ModuleNotFoundError: No module named 'app.services.event_service'
+FAILED tests/integration/test_events.py::test_sts_worker_no_sensitive_payload_in_summary - ModuleNotFoundError: No module named 'app.services.event_service'
+FAILED tests/integration/test_events.py::test_outbox_same_transaction_and_no_title_or_body - ModuleNotFoundError: No module named 'app.services.event_service'
+FAILED tests/integration/test_events.py::test_invalidation_only_for_previously_delivered_id - ModuleNotFoundError: No module named 'app.services.event_service'
+5 failed in 1.98s

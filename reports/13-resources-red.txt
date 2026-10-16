@@ -1,0 +1,242 @@
+FFFFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+_____________ test_visible_before_pagination_and_resource_nonleak ______________
+
+rt = <app.runtime.Runtime object at 0x7fc5e02aa510>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_visible_before_pagination_and_resource_nonleak(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        async with rt.db.transaction() as s:
+            s.add(Meeting(id='aaa',org_id='other',connection_id=c['id'],external_namespace='else',external_id='hidden',subject='SECRET'))
+>       result=await rt.meetings.list(p,limit=1)
+                     ^^^^^^^^^^^
+
+tests/integration/test_resources_jobs.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fc5e02aa510>
+
+    @cached_property
+    def meetings(self):
+>       from app.services.meeting_service import MeetingService
+E       ModuleNotFoundError: No module named 'app.services.meeting_service'
+
+app/runtime.py:48: ModuleNotFoundError
+____________ test_cache_read_still_checks_current_origin_and_action ____________
+
+rt = <app.runtime.Runtime object at 0x7fc5d3e9e350>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_cache_read_still_checks_current_origin_and_action(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        rt._provider.response={'minutes':{'meeting_minute':{'minute':'# Meeting notes','todo':''}}}
+>       asset=await rt.content.fetch(p,'record1','minutes')
+                    ^^^^^^^^^^
+
+tests/integration/test_resources_jobs.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fc5d3e9e350>
+
+    @cached_property
+    def content(self):
+>       from app.services.content_service import ContentService
+E       ModuleNotFoundError: No module named 'app.services.content_service'
+
+app/runtime.py:52: ModuleNotFoundError
+__________________ test_transcript_full_inclusive_pagination ___________________
+
+rt = <app.runtime.Runtime object at 0x7fc5e02e8190>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_transcript_full_inclusive_pagination(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        def paragraph(pid,text):return {'pid':pid,'sentences':[{'words':[{'text':text}]}]}
+        one=paragraph('opaque-a','Hello');two=paragraph('opaque-b','World');three=paragraph('opaque-c','Done')
+        def response(operation,kwargs):
+            if operation=='transcript':
+                pid=kwargs['query'].get('pid','0')
+                return {'more':True,'minutes':{'paragraphs':[one,two]}} if pid=='0' else {'more':False,'minutes':{'paragraphs':[two,three]}}
+            return {}
+        rt._provider.response=response
+>       asset=await rt.content.fetch(p,'record1','transcript')
+                    ^^^^^^^^^^
+
+tests/integration/test_resources_jobs.py:70: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fc5e02e8190>
+
+    @cached_property
+    def content(self):
+>       from app.services.content_service import ContentService
+E       ModuleNotFoundError: No module named 'app.services.content_service'
+
+app/runtime.py:52: ModuleNotFoundError
+_______________ test_partial_or_stuck_transcript_never_published _______________
+
+rt = <app.runtime.Runtime object at 0x7fc5d3d3a780>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_partial_or_stuck_transcript_never_published(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        rt._provider.response={'transcript':{'more':True,'minutes':{'paragraphs':[{'pid':'only','sentences':[]}]}}}
+>       with pytest.raises(MeetingError):await rt.content.fetch(p,'record1','transcript')
+                                               ^^^^^^^^^^
+
+tests/integration/test_resources_jobs.py:81: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fc5d3d3a780>
+
+    @cached_property
+    def content(self):
+>       from app.services.content_service import ContentService
+E       ModuleNotFoundError: No module named 'app.services.content_service'
+
+app/runtime.py:52: ModuleNotFoundError
+____________________ test_job_lease_fencing_and_retry_after ____________________
+
+rt = <app.runtime.Runtime object at 0x7fc5d3bb5350>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_job_lease_fencing_and_retry_after(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        async with rt.db.transaction() as s:
+>           j=await rt.jobs.enqueue(s,'SYNC',sp,{'kind':'CORP_RECORDS'},connection_id=c['id'],ingestion_grant_id='ingestion',dedup_key='same')
+                    ^^^^^^^
+
+tests/integration/test_resources_jobs.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fc5d3bb5350>
+
+    @cached_property
+    def jobs(self):
+>       from app.services.job_service import JobService
+E       ModuleNotFoundError: No module named 'app.services.job_service'
+
+app/runtime.py:60: ModuleNotFoundError
+____________________ test_corp_sync_window_and_dedup_upsert ____________________
+
+rt = <app.runtime.Runtime object at 0x7fc5d3ba71d0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_corp_sync_window_and_dedup_upsert(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        def response(operation,kwargs):
+            if operation!='corp_records':return {}
+            q=kwargs['query'];assert q['end_time']-q['start_time']<=31*86400
+            return {'total_page':1,'current_page':q['page'],'record_meetings':[{'meeting_id':'new-meeting',
+                'meeting_record_id':'new-record','subject':'Synced','host_user_id':'external-m1','state':3,
+                'record_files':[{'record_file_id':12345678901234567890,'record_start_time':1700000000000,
+                    'record_end_time':1700001000000,'record_size':1024}]}]}
+        rt._provider.response=response
+>       requested=await rt.sync.request(sp,SyncRequest(connection_ref=c['id'],kind='CORP_RECORDS',start_at=utcnow()-timedelta(days=35),end_at=utcnow()))
+                        ^^^^^^^
+
+tests/integration/test_resources_jobs.py:112: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fc5d3ba71d0>
+
+    @cached_property
+    def sync(self):
+>       from app.services.sync_service import SyncService
+E       ModuleNotFoundError: No module named 'app.services.sync_service'
+
+app/runtime.py:64: ModuleNotFoundError
+________________ test_ingestion_revoked_before_worker_executes _________________
+
+rt = <app.runtime.Runtime object at 0x7fc5d3a5f680>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_ingestion_revoked_before_worker_executes(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+>       await rt.sync.request(sp,SyncRequest(connection_ref=c['id'],kind='CORP_RECORDS',start_at=utcnow()-timedelta(days=1),end_at=utcnow()))
+              ^^^^^^^
+
+tests/integration/test_resources_jobs.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fc5d3a5f680>
+
+    @cached_property
+    def sync(self):
+>       from app.services.sync_service import SyncService
+E       ModuleNotFoundError: No module named 'app.services.sync_service'
+
+app/runtime.py:64: ModuleNotFoundError
+__________ test_mcp_or_employee_metadata_scope_does_not_allow_content __________
+
+rt = <app.runtime.Runtime object at 0x7fc5d39eb680>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.agent_grant.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_mcp_or_employee_metadata_scope_does_not_allow_content(rt,human,enterprise_app_body):
+        a,c,p,sp=await seed(rt,human,enterprise_app_body)
+        limited=p.model_copy(update={'scopes':frozenset({'meeting.read'})})
+>       with pytest.raises(MeetingError):await rt.content.fetch(limited,'record1','minutes')
+                                               ^^^^^^^^^^
+
+tests/integration/test_resources_jobs.py:137: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/functools.py:1026: in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.runtime.Runtime object at 0x7fc5d39eb680>
+
+    @cached_property
+    def content(self):
+>       from app.services.content_service import ContentService
+E       ModuleNotFoundError: No module named 'app.services.content_service'
+
+app/runtime.py:52: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_resources_jobs.py::test_visible_before_pagination_and_resource_nonleak - ModuleNotFoundError: No module named 'app.services.meeting_service'
+FAILED tests/integration/test_resources_jobs.py::test_cache_read_still_checks_current_origin_and_action - ModuleNotFoundError: No module named 'app.services.content_service'
+FAILED tests/integration/test_resources_jobs.py::test_transcript_full_inclusive_pagination - ModuleNotFoundError: No module named 'app.services.content_service'
+FAILED tests/integration/test_resources_jobs.py::test_partial_or_stuck_transcript_never_published - ModuleNotFoundError: No module named 'app.services.content_service'
+FAILED tests/integration/test_resources_jobs.py::test_job_lease_fencing_and_retry_after - ModuleNotFoundError: No module named 'app.services.job_service'
+FAILED tests/integration/test_resources_jobs.py::test_corp_sync_window_and_dedup_upsert - ModuleNotFoundError: No module named 'app.services.sync_service'
+FAILED tests/integration/test_resources_jobs.py::test_ingestion_revoked_before_worker_executes - ModuleNotFoundError: No module named 'app.services.sync_service'
+FAILED tests/integration/test_resources_jobs.py::test_mcp_or_employee_metadata_scope_does_not_allow_content - ModuleNotFoundError: No module named 'app.services.content_service'
+8 failed in 3.69s

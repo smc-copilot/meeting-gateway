@@ -1,0 +1,992 @@
+{
+  "ApplicationCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "application_type": {
+        "enum": [
+          "ENTERPRISE_AKSK",
+          "THIRD_PARTY_OAUTH"
+        ],
+        "title": "Application Type",
+        "type": "string"
+      },
+      "environment": {
+        "default": "test",
+        "enum": [
+          "test",
+          "production"
+        ],
+        "title": "Environment",
+        "type": "string"
+      },
+      "tencent_corp_id": {
+        "maxLength": 64,
+        "minLength": 1,
+        "title": "Tencent Corp Id",
+        "type": "string"
+      },
+      "sdk_id": {
+        "maxLength": 64,
+        "minLength": 1,
+        "title": "Sdk Id",
+        "type": "string"
+      },
+      "data_scope": {
+        "enum": [
+          "enterprise",
+          "user"
+        ],
+        "title": "Data Scope",
+        "type": "string"
+      },
+      "secret_id": {
+        "anyOf": [
+          {
+            "maxLength": 256,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Secret Id"
+      },
+      "secret_key": {
+        "anyOf": [
+          {
+            "maxLength": 512,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Secret Key"
+      },
+      "oauth_secret": {
+        "anyOf": [
+          {
+            "maxLength": 512,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Oauth Secret"
+      },
+      "webhook_token": {
+        "maxLength": 128,
+        "minLength": 8,
+        "title": "Webhook Token",
+        "type": "string"
+      },
+      "webhook_encoding_key": {
+        "maxLength": 44,
+        "minLength": 43,
+        "title": "Webhook Encoding Key",
+        "type": "string"
+      },
+      "allowed_open_corp_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "title": "Allowed Open Corp Ids",
+        "type": "array"
+      },
+      "reason": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "application_type",
+      "tencent_corp_id",
+      "sdk_id",
+      "data_scope",
+      "webhook_token",
+      "webhook_encoding_key",
+      "reason"
+    ],
+    "title": "ApplicationCreate",
+    "type": "object"
+  },
+  "EnterpriseConnectionCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "application_id": {
+        "title": "Application Id",
+        "type": "string"
+      },
+      "admin_member_id": {
+        "title": "Admin Member Id",
+        "type": "string"
+      },
+      "admin_userid": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Admin Userid",
+        "type": "string"
+      },
+      "reason": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "application_id",
+      "admin_member_id",
+      "admin_userid",
+      "reason"
+    ],
+    "title": "EnterpriseConnectionCreate",
+    "type": "object"
+  },
+  "IdentityBind": {
+    "additionalProperties": false,
+    "properties": {
+      "application_id": {
+        "title": "Application Id",
+        "type": "string"
+      },
+      "member_id": {
+        "title": "Member Id",
+        "type": "string"
+      },
+      "external_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "External Id",
+        "type": "string"
+      },
+      "external_corp_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "External Corp Id",
+        "type": "string"
+      },
+      "verification_source": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Verification Source",
+        "type": "string"
+      },
+      "reason": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "application_id",
+      "member_id",
+      "external_id",
+      "external_corp_id",
+      "verification_source",
+      "reason"
+    ],
+    "title": "IdentityBind",
+    "type": "object"
+  },
+  "GrantCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "subject_type": {
+        "enum": [
+          "MEMBER",
+          "SERVICE"
+        ],
+        "title": "Subject Type",
+        "type": "string"
+      },
+      "subject_id": {
+        "title": "Subject Id",
+        "type": "string"
+      },
+      "actions": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 30,
+        "minItems": 1,
+        "title": "Actions",
+        "type": "array"
+      },
+      "scope_type": {
+        "enum": [
+          "SELF_CREATED",
+          "EXPLICIT",
+          "ORG_APPROVED",
+          "PARTICIPATED"
+        ],
+        "title": "Scope Type",
+        "type": "string"
+      },
+      "resource_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 1000,
+        "title": "Resource Ids",
+        "type": "array"
+      },
+      "connection_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "title": "Connection Ids",
+        "type": "array"
+      },
+      "asset_types": {
+        "items": {
+          "enum": [
+            "transcript",
+            "minutes",
+            "video",
+            "audio"
+          ],
+          "type": "string"
+        },
+        "title": "Asset Types",
+        "type": "array"
+      },
+      "target_member_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 300,
+        "title": "Target Member Ids",
+        "type": "array"
+      },
+      "purpose": {
+        "default": "ACCESS",
+        "enum": [
+          "ACCESS",
+          "INGESTION",
+          "MANAGE"
+        ],
+        "title": "Purpose",
+        "type": "string"
+      },
+      "effect": {
+        "default": "ALLOW",
+        "enum": [
+          "ALLOW",
+          "DENY"
+        ],
+        "title": "Effect",
+        "type": "string"
+      },
+      "expires_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Expires At"
+      },
+      "reason": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "subject_type",
+      "subject_id",
+      "actions",
+      "scope_type",
+      "reason"
+    ],
+    "title": "GrantCreate",
+    "type": "object"
+  },
+  "ClientCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "client_type": {
+        "default": "CONFIDENTIAL",
+        "enum": [
+          "CONFIDENTIAL",
+          "PUBLIC_MCP"
+        ],
+        "title": "Client Type",
+        "type": "string"
+      },
+      "allowed_scopes": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 30,
+        "minItems": 1,
+        "title": "Allowed Scopes",
+        "type": "array"
+      },
+      "redirect_uris": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 10,
+        "title": "Redirect Uris",
+        "type": "array"
+      },
+      "owner_member_id": {
+        "title": "Owner Member Id",
+        "type": "string"
+      },
+      "agent_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Agent Id"
+      },
+      "allow_service": {
+        "default": false,
+        "title": "Allow Service",
+        "type": "boolean"
+      },
+      "reason": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "allowed_scopes",
+      "owner_member_id",
+      "reason"
+    ],
+    "title": "ClientCreate",
+    "type": "object"
+  },
+  "AgentGrantCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "client_id": {
+        "title": "Client Id",
+        "type": "string"
+      },
+      "agent_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Agent Id",
+        "type": "string"
+      },
+      "actions": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 10,
+        "minItems": 1,
+        "title": "Actions",
+        "type": "array"
+      },
+      "scope_type": {
+        "default": "EXPLICIT",
+        "enum": [
+          "SELF_CREATED",
+          "EXPLICIT",
+          "ORG_APPROVED"
+        ],
+        "title": "Scope Type",
+        "type": "string"
+      },
+      "resource_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 1000,
+        "title": "Resource Ids",
+        "type": "array"
+      },
+      "connection_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "title": "Connection Ids",
+        "type": "array"
+      },
+      "asset_types": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Asset Types",
+        "type": "array"
+      },
+      "target_member_ids": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Target Member Ids",
+        "type": "array"
+      },
+      "expires_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Expires At"
+      },
+      "reason": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "client_id",
+      "agent_id",
+      "actions",
+      "reason"
+    ],
+    "title": "AgentGrantCreate",
+    "type": "object"
+  },
+  "ACLCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "resource_type": {
+        "enum": [
+          "meeting",
+          "asset"
+        ],
+        "title": "Resource Type",
+        "type": "string"
+      },
+      "resource_id": {
+        "title": "Resource Id",
+        "type": "string"
+      },
+      "subject_type": {
+        "enum": [
+          "MEMBER",
+          "SERVICE"
+        ],
+        "title": "Subject Type",
+        "type": "string"
+      },
+      "subject_id": {
+        "title": "Subject Id",
+        "type": "string"
+      },
+      "effect": {
+        "enum": [
+          "ALLOW",
+          "DENY"
+        ],
+        "title": "Effect",
+        "type": "string"
+      },
+      "actions": {
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "title": "Actions",
+        "type": "array"
+      },
+      "asset_types": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Asset Types",
+        "type": "array"
+      },
+      "expires_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Expires At"
+      },
+      "reason": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "resource_type",
+      "resource_id",
+      "subject_type",
+      "subject_id",
+      "effect",
+      "actions",
+      "reason"
+    ],
+    "title": "ACLCreate",
+    "type": "object"
+  },
+  "SyncRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "connection_ref": {
+        "title": "Connection Ref",
+        "type": "string"
+      },
+      "kind": {
+        "enum": [
+          "CORP_RECORDS",
+          "USER_RECORDS",
+          "USER_HISTORY",
+          "USER_UPCOMING",
+          "MEETING_RECORDS",
+          "CONTENT"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "start_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Start At"
+      },
+      "end_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "End At"
+      },
+      "meeting_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Meeting Id"
+      },
+      "recording_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Recording Id"
+      },
+      "content_type": {
+        "anyOf": [
+          {
+            "enum": [
+              "transcript",
+              "minutes"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Content Type"
+      }
+    },
+    "required": [
+      "connection_ref",
+      "kind"
+    ],
+    "title": "SyncRequest",
+    "type": "object"
+  },
+  "MeetingCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "subject": {
+        "maxLength": 256,
+        "minLength": 1,
+        "title": "Subject",
+        "type": "string"
+      },
+      "start_at": {
+        "format": "date-time",
+        "title": "Start At",
+        "type": "string"
+      },
+      "end_at": {
+        "format": "date-time",
+        "title": "End At",
+        "type": "string"
+      },
+      "host_member_id": {
+        "maxLength": 64,
+        "minLength": 1,
+        "title": "Host Member Id",
+        "type": "string"
+      },
+      "invitee_member_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 300,
+        "title": "Invitee Member Ids",
+        "type": "array"
+      },
+      "connection_ref": {
+        "maxLength": 64,
+        "minLength": 1,
+        "title": "Connection Ref",
+        "type": "string"
+      },
+      "business_ref": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Business Ref"
+      },
+      "auto_record_type": {
+        "default": "NONE",
+        "enum": ["NONE", "CLOUD"],
+        "title": "Auto Record Type",
+        "type": "string"
+      }
+    },
+    "required": [
+      "subject",
+      "start_at",
+      "end_at",
+      "host_member_id",
+      "connection_ref"
+    ],
+    "title": "MeetingCreate",
+    "type": "object"
+  },
+  "Retention": {
+    "additionalProperties": false,
+    "properties": {
+      "metadata_days": {
+        "default": 180,
+        "maximum": 3650,
+        "minimum": 1,
+        "title": "Metadata Days",
+        "type": "integer"
+      },
+      "content_days": {
+        "default": 30,
+        "maximum": 3650,
+        "minimum": 1,
+        "title": "Content Days",
+        "type": "integer"
+      },
+      "audit_days": {
+        "default": 180,
+        "maximum": 3650,
+        "minimum": 1,
+        "title": "Audit Days",
+        "type": "integer"
+      },
+      "reason": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "reason"
+    ],
+    "title": "Retention",
+    "type": "object"
+  },
+  "AdminSync": {
+    "$defs": {
+      "SyncRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_ref": {
+            "title": "Connection Ref",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "CORP_RECORDS",
+              "USER_RECORDS",
+              "USER_HISTORY",
+              "USER_UPCOMING",
+              "MEETING_RECORDS",
+              "CONTENT"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start At"
+          },
+          "end_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End At"
+          },
+          "meeting_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Meeting Id"
+          },
+          "recording_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recording Id"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "transcript",
+                  "minutes"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content Type"
+          }
+        },
+        "required": [
+          "connection_ref",
+          "kind"
+        ],
+        "title": "SyncRequest",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "service_client_id": {
+        "maxLength": 64,
+        "minLength": 1,
+        "title": "Service Client Id",
+        "type": "string"
+      },
+      "request": {
+        "$ref": "#/$defs/SyncRequest"
+      }
+    },
+    "required": [
+      "service_client_id",
+      "request"
+    ],
+    "title": "AdminSync",
+    "type": "object"
+  },
+  "PolicyCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "connection_ref": {
+        "title": "Connection Ref",
+        "type": "string"
+      },
+      "client_id": {
+        "title": "Client Id",
+        "type": "string"
+      },
+      "ingestion_grant_id": {
+        "title": "Ingestion Grant Id",
+        "type": "string"
+      },
+      "interval_seconds": {
+        "default": 900,
+        "maximum": 86400,
+        "minimum": 300,
+        "title": "Interval Seconds",
+        "type": "integer"
+      },
+      "overlap_seconds": {
+        "default": 3600,
+        "maximum": 2678400,
+        "minimum": 60,
+        "title": "Overlap Seconds",
+        "type": "integer"
+      },
+      "reason": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "connection_ref",
+      "client_id",
+      "ingestion_grant_id",
+      "reason"
+    ],
+    "title": "PolicyCreate",
+    "type": "object"
+  },
+  "SubscriptionCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "client_id": {
+        "title": "Client Id",
+        "type": "string"
+      },
+      "destination": {
+        "maxLength": 1024,
+        "title": "Destination",
+        "type": "string"
+      },
+      "event_types": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 10,
+        "minItems": 1,
+        "title": "Event Types",
+        "type": "array"
+      },
+      "member_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Member Id"
+      },
+      "agent_grant_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Agent Grant Id"
+      },
+      "reason": {
+        "maxLength": 500,
+        "minLength": 3,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "client_id",
+      "destination",
+      "event_types",
+      "reason"
+    ],
+    "title": "SubscriptionCreate",
+    "type": "object"
+  }
+}

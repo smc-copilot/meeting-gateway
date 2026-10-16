@@ -1,0 +1,28 @@
+...FF                                                                    [100%]
+=================================== FAILURES ===================================
+___________ test_maintenance_expires_private_bytes_and_confirmation ____________
+
+rt = <app.runtime.Runtime object at 0x7f6026df6fd0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_maintenance_expires_private_bytes_and_confirmation(rt,human,enterprise_app_body):
+>       from app.services.maintenance_service import MaintenanceService
+E       ModuleNotFoundError: No module named 'app.services.maintenance_service'
+
+tests/integration/test_worker.py:50: ModuleNotFoundError
+_____________ test_maintenance_sts_requests_ticket_not_fake_active _____________
+
+rt = <app.runtime.Runtime object at 0x7f6025a5d0f0>
+human = Principal(org_id='o1', actor_type='MEMBER', client_id='portal', member_id='m1', user_id='u-m1', agent_id=None, agent_g... 'meeting.application.manage'}), policy_version=0, portal=True, member_role='admin', is_super_admin=False, trace_id='')
+enterprise_app_body = ApplicationCreate(name='Synthetic enterprise', application_type='ENTERPRISE_AKSK', environment='test', tencent_corp_id..., webhook_encoding_key='a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s', allowed_open_corp_ids=[], reason='fixture setup')
+
+    async def test_maintenance_sts_requests_ticket_not_fake_active(rt,human,enterprise_app_body):
+>       from app.services.maintenance_service import MaintenanceService
+E       ModuleNotFoundError: No module named 'app.services.maintenance_service'
+
+tests/integration/test_worker.py:62: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/integration/test_worker.py::test_maintenance_expires_private_bytes_and_confirmation - ModuleNotFoundError: No module named 'app.services.maintenance_service'
+FAILED tests/integration/test_worker.py::test_maintenance_sts_requests_ticket_not_fake_active - ModuleNotFoundError: No module named 'app.services.maintenance_service'
+2 failed, 3 passed in 3.99s
