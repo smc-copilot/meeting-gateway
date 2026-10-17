@@ -6,6 +6,22 @@ created_at: 2026-10-16
 related_spec: ARCH-MEETING-001
 ---
 
+# 腾讯会议第三方 OAuth 固定回调
+
+本阶段腾讯应用配置只来自网关 `.env`。公开回调使用应用数字 ID（sdk_id）作为别名，不把数字写入数据库主键。
+
+固定地址（把 `<AppID>` 换成 `TENCENT_MEETING_APP_ID`）：
+
+- OAuth：`GET {PUBLIC_BASE_URL}/callbacks/tencent/oauth/<AppID>`
+- Webhook 校验：`GET {PUBLIC_BASE_URL}/callbacks/tencent/events/<AppID>`
+- Webhook 事件：`POST {PUBLIC_BASE_URL}/callbacks/tencent/events/<AppID>`
+
+`TENCENT_MEETING_WEBHOOK_URL` 必须与上面的 Webhook 地址逐字相同。`TENCENT_MEETING_WEBHOOK_EncodingAESKey` 经 Base64 解码后必须是 32 字节。规范别名 `TENCENT_MEETING_WEBHOOK_ENCODING_AES_KEY` 与 `TENCENT_MEETING_WEBHOOK_TOKEN` 同样可用。启动检查和 `python -m app.cli check` 只打印是否完整和 URL，不打印 Secret、AESKey、Token。
+
+凭据轮换：在服务器更新 `.env` 后执行 `python -m app.cli reconcile-env`。已有应用 UUID、receiver、连接和授权事务保留；OAuth 客户密钥或 Webhook Token/AESKey 变化时才写入新一代加密凭据。Webhook 凭据变化后需要腾讯后台重新做 GET 校验，本地 `webhook_verified_at` 会清空。
+
+本阶段不启用企业自建 AK/SK、STS、会议创建、全企业同步、媒体下载和 MCP。下列历史检查项保留作后续阶段清单，不作为本轮验收。
+
 # 腾讯会议双通道配置与联调清单
 
 **用途：**为 `nodeskclaw-meeting` 第一版准备应用、网络、授权和验证证据。本文不是已执行记录；所有检查项初始均为“未执行”。密钥、Token、Cookie、完整签名和带凭证的下载地址不得填写到本文。

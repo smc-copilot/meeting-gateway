@@ -37,38 +37,59 @@ class IdentityService:
                 issuer_id=ISSUER, namespace_version=1, auth_mode_epoch=1, applied_config_digest=digest_value)
             session.add(row)
             await session.flush()
-            await self._project_tencent(session, row)
-            return row
-        if row.component_id != settings.meeting_component_id or row.org_id != settings.meeting_org_id or row.issuer_id != ISSUER:
+        elif row.component_id != settings.meeting_component_id or row.org_id != settings.meeting_org_id or row.issuer_id != ISSUER:
             raise MeetingError("IDENTITY_NAMESPACE_MISMATCH", 409)
+        await self.reconcile_env_tencent(session, row)
         return row
 
-    async def _project_tencent(self, session, deployment):
+    async def reconcile_env_tencent(self, session, deployment):
         settings = self.rt.settings
         app_id = settings.tencent_meeting_app_id
         secret = settings.tencent_meeting_app_secret.get_secret_value()
         corp = settings.tencent_meeting_corp_id
         if not app_id or not secret or not corp:
-            return
+            return None
         environment = "production" if settings.environment == "production" else "test"
         existing = await session.scalar(select(Application).where(Application.org_id == deployment.org_id,
             Application.sdk_id == app_id, Application.deleted_at.is_(None)))
-        if existing:
-            existing.tencent_corp_id = corp
-            existing.allowed_open_corp_ids = list(settings.tencent_meeting_allowed_open_corp_ids)
-            data = dict(existing.settings_data or {})
-            data.update({"owner": "ENV", "managed_key": "tencent-default",
-                         "oauth_return_uris": list(settings.tencent_meeting_oauth_return_uris)})
-            existing.settings_data = data
-            return
-        app = Application(org_id=deployment.org_id, name="ENV OAuth", application_type="THIRD_PARTY_OAUTH",
-            environment=environment, tencent_corp_id=corp, sdk_id=app_id, data_scope="user", enabled=True,
-            receiver_id=new_id(), allowed_open_corp_ids=list(settings.tencent_meeting_allowed_open_corp_ids),
-            settings_data={"owner": "ENV", "managed_key": "tencent-default",
-                           "oauth_return_uris": list(settings.tencent_meeting_oauth_return_uris)})
-        session.add(app)
-        await session.flush()
-        await self.rt.admin.save_secret(session, app, "OAUTH_APP", {"secret": secret})
+        if existing and (existing.settings_data or {}).get("owner") != "ENV":
+            raise MeetingError("CONFLICT", 409)
+        app = existing or Application(org_id=deployment.org_id, name=settings.tencent_meeting_webhook_name or "ENV OAuth",
+            application_type="THIRD_PARTY_OAUTH", environment=environment, tencent_corp_id=corp, sdk_id=app_id,
+            data_scope="user", enabled=True, receiver_id=new_id(),
+            allowed_open_corp_ids=list(settings.tencent_meeting_allowed_open_corp_ids), settings_data={})
+        if existing is None:
+            session.add(app)
+            await session.flush()
+        app.tencent_corp_id = corp
+        app.allowed_open_corp_ids = list(settings.tencent_meeting_allowed_open_corp_ids)
+        if settings.tencent_meeting_webhook_name:
+            app.name = settings.tencent_meeting_webhook_name
+        data = dict(app.settings_data or {})
+        data.update({"owner": "ENV", "managed_key": "tencent-default",
+                     "oauth_return_uris": list(settings.tencent_meeting_oauth_return_uris),
+                     "oauth_callback_url": settings.fixed_oauth_callback_url(),
+                     "webhook_callback_url": settings.fixed_webhook_callback_url()})
+        app.settings_data = data
+        await self._rotate_secret(session, app, "OAUTH_APP", {"secret": secret})
+        token = settings.tencent_meeting_webhook_token.get_secret_value()
+        encoding_key = settings.tencent_meeting_webhook_encoding_aes_key.get_secret_value()
+        if token and encoding_key:
+            changed = await self._rotate_secret(session, app, "WEBHOOK", {"token": token, "encoding_key": encoding_key})
+            if changed:
+                app.webhook_verified_at = None
+        return app
+
+    async def _rotate_secret(self, session, app, purpose, value):
+        try:
+            _, current = await self.rt.admin.read_secret(session, app, purpose)
+        except MeetingError:
+            await self.rt.admin.save_secret(session, app, purpose, value)
+            return True
+        if current != value:
+            await self.rt.admin.save_secret(session, app, purpose, value)
+            return True
+        return False
 
     async def require_member(self, org_id: str, member_id: str) -> MemberContext:
         async with self.rt.db.session() as session:

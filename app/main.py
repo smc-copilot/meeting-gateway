@@ -26,6 +26,9 @@ def create_app(settings=None,*,runtime=None):
     rt=runtime or Runtime(settings or Settings())
     @asynccontextmanager
     async def lifespan(app):
+        if rt.settings.tencent_meeting_app_id and rt.settings.tencent_meeting_corp_id and rt.settings.tencent_meeting_app_secret.get_secret_value():
+            async with rt.db.transaction() as session:
+                await rt.identity.ensure_deployment(session)
         yield
         if owned:await rt.close()
     app=FastAPI(title='NoDeskClaw Meeting Gateway',version=__version__,lifespan=lifespan,

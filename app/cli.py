@@ -24,6 +24,9 @@ def generate_env(path: Path, public_url: str, portal_url: str, login_url: str, d
         'MEETING_ORG_ID':'','MEETING_BOOTSTRAP_ADMIN_USER_IDS':'[]','AUTH_SESSION_TTL_SECONDS':'900',
         'AUTH_ADMIN_FRESH_SECONDS':'300','TENCENT_MEETING_AUTH_MODE':'oauth','TENCENT_MEETING_CORP_ID':'',
         'TENCENT_MEETING_APP_ID':'','TENCENT_MEETING_APP_SECRET':'','TENCENT_MEETING_ALLOWED_OPEN_CORP_IDS':'[]',
+        'TENCENT_MEETING_OAUTH_RETURN_URIS':'[]','TENCENT_MEETING_WEBHOOK_NAME':'',
+        'TENCENT_MEETING_WEBHOOK_EncodingAESKey':'','TENCENT_MEETING_WEBHOOK_Token':'',
+        'TENCENT_MEETING_WEBHOOK_URL':'',
         'METRICS_TOKEN':secrets.token_urlsafe(48),'PUBLIC_BASE_URL':public_url,'PORTAL_BASE_URL':portal_url,
         'KEYRING_JSON':json.dumps({'v1':base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()}),
         'ACTIVE_KEY_ID':'v1','ALLOWED_HOSTS':json.dumps([urlsplit(public_url).hostname,'127.0.0.1','localhost']),
@@ -47,6 +50,7 @@ def main():
     create.add_argument('--account-login-url',default='http://127.0.0.1:9/api/v1/auth/account-login')
     create.add_argument('--database-host',default='postgres')
     sub.add_parser('check')
+    sub.add_parser('reconcile-env')
     migrate=sub.add_parser('identity-migrate')
     migrate.add_argument('--map',type=Path,required=True)
     args=parser.parse_args()
@@ -65,11 +69,36 @@ def main():
             finally:
                 asyncio.run(runtime.close())
             print(json.dumps({'mapped':result['mapped']}))
+        elif args.command=='reconcile-env':
+            import asyncio
+            from app.core.config import Settings
+            from app.runtime import Runtime
+            from sqlalchemy import select
+            from app.models import Application
+            runtime=Runtime(Settings())
+            async def reconcile():
+                async with runtime.db.transaction() as session:
+                    deployment=await runtime.identity.ensure_deployment(session)
+                    app=await session.scalar(select(Application).where(Application.org_id==deployment.org_id,
+                        Application.sdk_id==runtime.settings.tencent_meeting_app_id, Application.deleted_at.is_(None)))
+                    if app is None:
+                        return {'configured':False}
+                    return {'configured':True,'application_id':app.id,'receiver_id':app.receiver_id,
+                        'oauth_callback_url':runtime.settings.fixed_oauth_callback_url(),
+                        'webhook_callback_url':runtime.settings.fixed_webhook_callback_url()}
+            try:
+                print(json.dumps(asyncio.run(reconcile())))
+            finally:
+                asyncio.run(runtime.close())
         else:
             from app.core.config import Settings
             settings=Settings()
             print(json.dumps({'valid':True,'environment':settings.environment,'public_base_url':settings.public_base_url,
                 'key_ids':list(settings.keyring_json),'active_key_id':settings.active_key_id,
+                'tencent':{'configured':settings.tencent_webhook_complete(),
+                    'oauth_callback_url':settings.fixed_oauth_callback_url(),
+                    'webhook_callback_url':settings.fixed_webhook_callback_url(),
+                    'webhook_url_matches':bool(settings.tencent_meeting_app_id) and settings.tencent_meeting_webhook_url==settings.fixed_webhook_callback_url()},
                 'features':{'mcp':settings.meeting_mcp_enabled,'create':settings.meeting_create_enabled,
                     'corp_sync':settings.meeting_corp_sync_enabled,'media_download':settings.meeting_media_download_enabled}}))
     except FileExistsError:

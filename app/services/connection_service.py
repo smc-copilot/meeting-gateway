@@ -120,7 +120,8 @@ class ConnectionService:
                 expires_at=utcnow()+timedelta(seconds=self.rt.settings.upstream_state_seconds),
                 payload={'user_id':principal.user_id,'return_to':return_to})
             s.add(tx);record(s,principal,'oauth.started',resource_id=app.id)
-            redirect=self.rt.settings.public_base_url+'/callbacks/tencent/oauth/'+app.id
+            public_ref=app.sdk_id if (app.settings_data or {}).get('owner')=='ENV' and app.sdk_id else app.id
+            redirect=self.rt.settings.public_base_url+'/callbacks/tencent/oauth/'+public_ref
             query=urlencode({'corp_id':app.tencent_corp_id,'sdk_id':app.sdk_id,'redirect_uri':redirect,'state':state})
             return {'authorization_url':'https://meeting.tencent.com/marketplace/authorize.html?'+query,
                     'transaction_id':tx.id,'expires_at':tx.expires_at}

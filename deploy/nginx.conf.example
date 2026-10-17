@@ -1,6 +1,8 @@
 # HTTPS is terminated here. Replace the host, certificate paths and INTERNAL_CIDR.
 # access_log excludes query strings, OAuth codes, download tickets and request bodies.
+# log_format belongs in the http context. Callback logs must not use $request, $request_uri or $args.
 log_format meeting_safe '$time_iso8601 $remote_addr $status $request_method $request_time';
+log_format meeting_callback '$remote_addr - $status "$request_method $uri"';
 server {
     listen 443 ssl;
     server_name meeting-gateway.example.invalid;
@@ -33,4 +35,27 @@ server {
         proxy_pass http://127.0.0.1:4522;
     }
     location /metrics { deny all; }
+}
+
+# Merge into the existing listen 9999 ssl server. Do not replace other locations.
+# GET /callbacks/tencent/oauth/<AppID> carries auth_code and state; this log records $uri only.
+server {
+    listen 9999 ssl;
+    server_name meeting-gateway.example.invalid;
+    ssl_certificate /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/privkey.pem;
+    location = /callbacks/tencent/oauth/33510141629 {
+        access_log /var/log/nginx/meeting-callback.log meeting_callback;
+        proxy_pass http://127.0.0.1:4522;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 10s;
+    }
+    location = /callbacks/tencent/events/33510141629 {
+        access_log /var/log/nginx/meeting-callback.log meeting_callback;
+        proxy_pass http://127.0.0.1:4522;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 10s;
+    }
 }
