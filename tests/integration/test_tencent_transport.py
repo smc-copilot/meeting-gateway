@@ -18,6 +18,14 @@ async def actual_transport(rt, handler):
     return rt.tencent
 
 
+async def test_oauth_http_500_stays_unavailable(rt):
+    def handler(request):
+        return httpx.Response(500, json={"code": 500, "message": "SECRET-BODY"})
+    client = await actual_transport(rt, handler)
+    with pytest.raises(UpstreamError, match="UPSTREAM_UNAVAILABLE"):
+        await client.oauth("refresh_token", {"sdk_id": "sdk", "open_id": "open-1", "refresh_token": "refresh-1"})
+
+
 async def test_resource_transport_signs_exact_wire_uri_and_bytes(rt,human,enterprise_app_body):
     a,c=await prepare(rt,human,enterprise_app_body)
     seen=[]

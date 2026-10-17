@@ -35,7 +35,7 @@ def _external(value):
 class TencentClient:
     def __init__(self,runtime):self.rt=runtime
 
-    def _raise_upstream(self,code,status,*,oauth_channel,write):
+    def _raise_upstream(self,code,status,*,credential_channel,write):
         if code in {'190311','190312'}:
             raise UpstreamError('UPSTREAM_DAILY_QUOTA',upstream_code=code,budgeted=True)
         if code=='190310' or status==429:
@@ -45,7 +45,7 @@ class TencentClient:
         if code=='190325':
             raise UpstreamError('UPSTREAM_CAPABILITY_UNAVAILABLE',upstream_code=code,budgeted=False)
         if code=='190303':
-            reason='UPSTREAM_REAUTH_REQUIRED' if oauth_channel else 'UPSTREAM_CREDENTIAL_INVALID'
+            reason='UPSTREAM_REAUTH_REQUIRED' if credential_channel else 'UPSTREAM_CREDENTIAL_INVALID'
             raise UpstreamError(reason,upstream_code=code,budgeted=False)
         if code=='30003':
             raise UpstreamError('CONTENT_NOT_READY',upstream_code=code)
@@ -55,12 +55,15 @@ class TencentClient:
             raise UpstreamError('SOURCE_REMOVED',upstream_code=code,budgeted=False)
         if code in {'500014','9042','403','9100','9099'} or status==403:
             raise UpstreamError('UPSTREAM_PERMISSION_DENIED',upstream_code=code,budgeted=False)
-        if oauth_channel or status==401:
-            raise UpstreamError('UPSTREAM_REAUTH_REQUIRED',upstream_code=code,budgeted=False)
-        raise UpstreamError('UPSTREAM_UNAVAILABLE',upstream_code=code,
-                            uncertain=write and (status>=500 or code in {'41','960000'}))
+        if status>=500:
+            raise UpstreamError('UPSTREAM_UNAVAILABLE',upstream_code=code,budgeted=False,
+                                uncertain=write or code in {'41','960000'})
+        if status==401:
+            reason='UPSTREAM_REAUTH_REQUIRED' if credential_channel else 'UPSTREAM_CREDENTIAL_INVALID'
+            raise UpstreamError(reason,upstream_code=code,budgeted=False)
+        raise UpstreamError('UPSTREAM_UNAVAILABLE',upstream_code=code,uncertain=write and code in {'41','960000'})
 
-    async def _send(self,method,url,headers,body,*,oauth=False,write=False):
+    async def _send(self,method,url,headers,body,*,envelope=False,credential_channel=False,write=False):
         try:
             async with self.rt.upstream_http.stream(method,url,headers=headers,content=body) as response:
                 if 300<=response.status_code<400:raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write)
@@ -76,8 +79,8 @@ class TencentClient:
                 error=error if isinstance(error,dict) else {}
                 code=str(error.get('error_code',result.get('code',0)))
                 if response.status_code>=400 or code not in {'0','None',''}:
-                    self._raise_upstream(code,response.status_code,oauth_channel=oauth,write=write)
-                if oauth:
+                    self._raise_upstream(code,response.status_code,credential_channel=credential_channel,write=write)
+                if envelope:
                     if not isinstance(result.get('data'),dict):raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
                     return result['data']
                 return result
@@ -91,7 +94,8 @@ class TencentClient:
             'user_info':{'open_id','access_token'},
         }
         if operation not in allowed or set(payload)!=allowed[operation]:raise MeetingError('INVALID_REQUEST',422)
-        return await self._send('POST',OAUTH_ORIGIN+operation,{'Content-Type':'application/json'},canonical(payload),oauth=True)
+        return await self._send('POST',OAUTH_ORIGIN+operation,{'Content-Type':'application/json'},canonical(payload),
+                                 envelope=True,credential_channel=True)
 
     async def admit(self,connection_id,operation,*,heartbeat=None):
         async with self.rt.db.session() as s:
@@ -158,4 +162,4 @@ class TencentClient:
             headers.update({'AccessToken':token['access_token'],'OpenId':c.external_id})
         if not admitted:await self.admit(connection_id,operation,heartbeat=heartbeat)
         self.rt.metrics['upstream_calls']+=1
-        return await self._send(method,url,headers,raw,write=operation=='create')
+        return await self._send(method,url,headers,raw,credential_channel=c.kind=='THIRD_PARTY_OAUTH',write=operation=='create')

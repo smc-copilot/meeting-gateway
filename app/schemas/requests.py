@@ -96,7 +96,7 @@ class ClientCreate(StrictModel):
 
 
 class MeetingQuery(StrictModel):
-    selection: Literal["MEETING_ID", "USER_WINDOW", "CORP_WINDOW"]
+    selection: Literal["MEETING_ID", "USER_WINDOW", "CORP_WINDOW", "RECORDINGS"]
     connection_ref: str = Field(min_length=1, max_length=64)
     meeting_id: str | None = Field(None, max_length=128)
     target_member_id: str | None = Field(None, max_length=64)

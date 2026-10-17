@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import select, func
 from app.core.errors import MeetingError
 from app.core.types import utcnow
-from app.models import Client, Meeting, Operation
+from app.models import Client, Meeting, Operation, SyncJob
 from app.schemas.requests import MeetingQuery
 from test_operations import member_oauth, request
 from test_resources_jobs import seed
@@ -95,6 +95,57 @@ async def test_default_recording_is_explicitly_none(rt, human, enterprise_app_bo
     await rt.operations.execute(job.id, job.lease_token)
     body = rt.tencent.calls[-1][3]["body"]
     assert body["settings"]["auto_record_type"] == "none" and rt.tencent.created == 1
+
+
+async def test_enterprise_member_can_query_and_create_without_switching_channel(rt, human, enterprise_app_body):
+    _, c, p, sp = await seed(rt, human, enterprise_app_body)
+    before = len(rt.tencent.calls)
+    with pytest.raises(MeetingError, match="PERMISSION_DENIED"):
+        await rt.queries.submit(p, MeetingQuery(selection="CORP_WINDOW", connection_ref=c["id"]))
+    with pytest.raises(MeetingError, match="PERMISSION_DENIED"):
+        await rt.operations.prepare(sp, request(c), "service-enterprise")
+    op = await rt.operations.prepare(p, request(c), "enterprise-self")
+    assert op["state"] == "AWAITING_CONFIRMATION" and len(rt.tencent.calls) == before
+    await rt.operations.confirm(human, op["id"], op["request_hash"])
+    job = await rt.jobs.claim("enterprise-create")
+    await rt.operations.execute(job.id, job.lease_token)
+    assert rt.tencent.created == 1 and rt.tencent.calls[-1][2].type == 1
+
+
+async def test_user_window_reads_every_page_once(rt, human, enterprise_app_body):
+    _, c, p, _ = await seed(rt, human, enterprise_app_body)
+    def response(operation, kwargs):
+        page = kwargs["query"]["page"]
+        count = 1 if page == 3 else 20
+        start = (page - 1) * 20
+        return {"meeting_info_list": [{"meeting_id": f"hist-{index}", "subject": "Listed", "start_time": "10", "end_time": "20"}
+                                       for index in range(start, start + count)], "total_page": 3, "current_page": page,
+                "record_meetings": []}
+    rt._provider.response = response
+    start = utcnow() - timedelta(hours=2)
+    body = MeetingQuery(selection="USER_WINDOW", connection_ref=c["id"], target_member_id="m1", start_at=start, end_at=start + timedelta(hours=1))
+    submitted = await rt.queries.submit(p, body)
+    job = await rt.jobs.claim("history-worker")
+    assert job.id == submitted["job_id"]
+    await rt.queries.run(job, job.lease_token)
+    pages = [item[3]["query"]["page"] for item in rt.tencent.calls if item[1] == "history"]
+    assert pages == [1, 2, 3]
+    async with rt.db.session() as s:
+        stored = await s.scalar(select(func.count()).select_from(Meeting).where(Meeting.external_id.like("hist-%")))
+        finished = await s.get(SyncJob, job.id)
+    assert stored == 41 and finished.progress["complete"] is True and finished.progress["meeting_count"] == 41
+
+
+async def test_recording_ensure_checks_upstream_even_when_empty(rt, human, enterprise_app_body):
+    _, c, p, _ = await seed(rt, human, enterprise_app_body)
+    job_id = await rt.queries.ensure_recordings(p, "meeting1")
+    job = await rt.jobs.claim("recording-worker")
+    assert job.id == job_id
+    await rt.queries.run(job, job.lease_token)
+    async with rt.db.session() as s:
+        finished = await s.get(SyncJob, job.id)
+    assert finished.progress["complete"] is True and finished.progress["upstream_empty"] is True
+    assert any(item[1] == "records" for item in rt.tencent.calls)
 
 
 async def test_confirmation_expires_in_ten_minutes(rt, human, enterprise_app_body):

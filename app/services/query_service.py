@@ -1,9 +1,12 @@
 """Source lookup is separate from the local catalogue. A miss stores nothing about the meeting."""
 from datetime import timedelta
+from sqlalchemy import select
 from app.core.errors import MeetingError, UpstreamError
 from app.core.types import Principal, utcnow
+from app.models import SyncJob
 from app.schemas.requests import MeetingQuery
 from app.services.audit_service import record
+from app.services.sync_service import windows
 
 
 class QueryService:
@@ -17,12 +20,17 @@ class QueryService:
         if p.actor_type != 'MEMBER' or not p.member_id:
             raise MeetingError('PERMISSION_DENIED', 403)
         c, _app = await self.rt.connections.owned(p, body.connection_ref)
-        if c.kind != 'THIRD_PARTY_OAUTH' or c.member_id != p.member_id:
+        if c.member_id != p.member_id or c.kind not in {'THIRD_PARTY_OAUTH', 'ENTERPRISE_AKSK'}:
             raise MeetingError('PERMISSION_DENIED', 403)
         if body.selection == 'USER_WINDOW':
             if body.target_member_id != p.member_id or body.start_at is None or body.end_at is None or body.start_at >= body.end_at:
                 raise MeetingError('PERMISSION_DENIED', 403) if body.target_member_id != p.member_id else MeetingError('INVALID_REQUEST', 422)
-        elif not body.meeting_id:
+            if list(windows(body.start_at, body.end_at, 90)).__len__() > 120:
+                raise MeetingError('INVALID_REQUEST', 422)
+        elif body.selection in {'MEETING_ID', 'RECORDINGS'}:
+            if not body.meeting_id:
+                raise MeetingError('INVALID_REQUEST', 422)
+        else:
             raise MeetingError('INVALID_REQUEST', 422)
         async with self.rt.db.transaction() as s:
             await self.rt.policy.require(s, p, 'meeting.read', connection_id=c.id)
@@ -37,28 +45,21 @@ class QueryService:
             raise MeetingError('PERMISSION_DENIED', 403)
         p = await self.rt.auth.revalidate(Principal.model_validate(job.principal_data))
         c, _app = await self.rt.connections.owned(p, job.connection_id)
-        if c.kind != 'THIRD_PARTY_OAUTH' or c.member_id != p.member_id:
+        if c.member_id != p.member_id or c.kind not in {'THIRD_PARTY_OAUTH', 'ENTERPRISE_AKSK'}:
             raise MeetingError('PERMISSION_DENIED', 403)
         operator = await self.rt.connections.operator(c, member_id=p.member_id)
         async with self.rt.db.session() as s:
             await self.rt.jobs.fence(s, job.id, lease_token)
             await self.rt.policy.require(s, p, 'meeting.read', connection_id=c.id)
-        await self.rt.tencent.admit(c.id, 'history' if body.selection == 'USER_WINDOW' else 'meeting',
-                                    heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token))
         if body.selection == 'USER_WINDOW':
-            raw = await self.rt.tencent.call(c.id, 'history', operator, query={
-                'start_time': int(body.start_at.timestamp()), 'end_time': int(body.end_at.timestamp()),
-                'page': 1, 'page_size': 20}, admitted=True)
-            items = raw.get('meeting_info_list') if isinstance(raw, dict) else None
-            if not isinstance(items, list):
-                raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
-            async with self.rt.db.transaction() as s:
-                for item in items:
-                    if isinstance(item, dict) and item.get('meeting_id'):
-                        await self.rt.meetings.upsert(s, c, item, purpose='MEMBER_HISTORY', owner_member_id=p.member_id, history=True)
+            await self._history(job, lease_token, p, c, operator, body)
+            return
+        if body.selection == 'RECORDINGS':
+            await self._recordings(job, lease_token, p, c, operator, body)
             return
         try:
-            raw = await self.rt.tencent.call(c.id, 'meeting', operator, file_id=body.meeting_id, admitted=True)
+            raw = await self.rt.tencent.call(c.id, 'meeting', operator, file_id=body.meeting_id,
+                                             heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token))
         except MeetingError as exc:
             if exc.reason == 'RESOURCE_NOT_ACCESSIBLE':
                 raise
@@ -85,5 +86,102 @@ class QueryService:
             c, _app = await self.rt.connections.owned(p, row.connection_id)
             payload = {'selection': 'MEETING_ID', 'connection_ref': c.id, 'meeting_id': row.external_id,
                        'target_member_id': None, 'start_at': None, 'end_at': None}
+            try:
+                await self.rt.connections.operator(c, member_id=p.member_id)
+            except MeetingError as exc:
+                raise MeetingError('UPSTREAM_CAPABILITY_UNAVAILABLE', 409) from exc
             job = await self.rt.jobs.enqueue(s, 'SOURCE_QUERY', p, payload, connection_id=c.id, dedup_key='ensure-meeting:' + row.id)
             return job.id
+
+    async def ensure_recordings(self, principal, meeting_id):
+        p = await self.rt.auth.revalidate(principal)
+        async with self.rt.db.transaction() as s:
+            row = await self.rt.meetings.row(s, p, meeting_id)
+            c, _app = await self.rt.connections.owned(p, row.connection_id)
+            if c.member_id != p.member_id or c.kind not in {'THIRD_PARTY_OAUTH', 'ENTERPRISE_AKSK'}:
+                raise MeetingError('UPSTREAM_CAPABILITY_UNAVAILABLE', 409)
+            try:
+                await self.rt.connections.operator(c, member_id=p.member_id)
+            except MeetingError as exc:
+                raise MeetingError('UPSTREAM_CAPABILITY_UNAVAILABLE', 409) from exc
+            slot = int(utcnow().timestamp()) // max(self.rt.settings.source_health_seconds, 1)
+            dedup = 'ensure-recordings:' + row.id + ':' + str(slot)
+            existing = await s.scalar(select(SyncJob).where(SyncJob.dedup_key == dedup, SyncJob.deleted_at.is_(None)))
+            if existing and existing.state == 'SUCCEEDED':
+                return None
+            if existing:
+                return existing.id
+            payload = {'selection': 'RECORDINGS', 'connection_ref': c.id, 'meeting_id': row.external_id,
+                       'target_member_id': p.member_id, 'start_at': (row.start_at or utcnow()).isoformat(),
+                       'end_at': (row.end_at or utcnow()).isoformat()}
+            job = await self.rt.jobs.enqueue(s, 'SOURCE_QUERY', p, payload, connection_id=c.id, dedup_key=dedup)
+            return job.id
+
+    async def _remember(self, job_id, lease_token, progress):
+        async with self.rt.db.transaction() as s:
+            current = await self.rt.jobs.fence(s, job_id, lease_token)
+            current.progress = {**(current.progress or {}), **progress}
+
+    async def _history(self, job, lease_token, principal, connection, operator, body):
+        seen = set()
+        pages = 0
+        intervals = list(windows(body.start_at, body.end_at, 90))
+        for index, (begin, stop) in enumerate(intervals):
+            page = 1
+            while page <= 100000:
+                raw = await self.rt.tencent.call(connection.id, 'history', operator, query={
+                    'start_time': begin, 'end_time': stop, 'page': page, 'page_size': 20},
+                    heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token))
+                items = raw.get('meeting_info_list') if isinstance(raw, dict) else None
+                total = raw.get('total_page') if isinstance(raw, dict) else None
+                if not isinstance(items, list) or not isinstance(total, int):
+                    raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
+                if not items and page < total:
+                    raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
+                async with self.rt.db.transaction() as s:
+                    await self.rt.jobs.fence(s, job.id, lease_token)
+                    for item in items:
+                        if not isinstance(item, dict) or not item.get('meeting_id'):
+                            continue
+                        ident = str(item['meeting_id'])
+                        if ident in seen:
+                            continue
+                        seen.add(ident)
+                        await self.rt.meetings.upsert(s, connection, item, purpose='MEMBER_HISTORY',
+                                                      owner_member_id=principal.member_id, history=True)
+                pages += 1
+                await self._remember(job.id, lease_token, {'window_index': index, 'page': page, 'pages': pages,
+                                                            'meeting_count': len(seen), 'complete': False})
+                if page >= total or total == 0:
+                    break
+                page += 1
+            else:
+                raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
+        await self._remember(job.id, lease_token, {'complete': True, 'pages': pages, 'meeting_count': len(seen)})
+
+    async def _recordings(self, job, lease_token, principal, connection, operator, body):
+        start = int(body.start_at.timestamp()) if body.start_at else int((utcnow() - timedelta(days=1)).timestamp())
+        end = int(body.end_at.timestamp()) if body.end_at else int(utcnow().timestamp())
+        if end <= start:
+            end = start + 60
+        page = 1
+        found = 0
+        while page <= 100000:
+            raw = await self.rt.tencent.call(connection.id, 'records', operator, query={
+                'start_time': start, 'end_time': end, 'page': page, 'page_size': 20, 'meeting_id': body.meeting_id},
+                heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token))
+            rows = raw.get('record_meetings') if isinstance(raw, dict) else None
+            total = raw.get('total_page') if isinstance(raw, dict) else None
+            if not isinstance(rows, list) or not isinstance(total, int):
+                raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
+            async with self.rt.db.transaction() as s:
+                await self.rt.jobs.fence(s, job.id, lease_token)
+                for item in rows:
+                    if isinstance(item, dict) and item.get('meeting_id'):
+                        await self.rt.meetings.upsert(s, connection, item, purpose='USER', owner_member_id=principal.member_id)
+                        found += len(item.get('record_files') or [])
+            if page >= total or total == 0:
+                break
+            page += 1
+        await self._remember(job.id, lease_token, {'complete': True, 'pages': page, 'recording_count': found,
+                                                    'upstream_empty': found == 0})

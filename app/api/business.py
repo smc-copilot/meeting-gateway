@@ -44,14 +44,20 @@ async def meeting_queries(request:Request,body:MeetingQuery,p=Depends(business))
 async def oauth_authorization(request:Request,body:OAuthStart,p=Depends(business)):
     return envelope(request,await runtime(request).connections.oauth_start(p,body.application_id,body.return_to))
 
+@router.post('/connections/{connection_id}/confirm')
+async def confirm_connection(request:Request,connection_id:str,p=Depends(business)):
+    return envelope(request,await runtime(request).connections.confirm_oauth_member(p,connection_id))
+
 @router.get('/meetings/{meeting_id}/recordings')
 async def recordings(request:Request,meeting_id:str,fetch:str=Query('ensure'),p=Depends(business)):
     if fetch not in {'ensure','cache'}:raise MeetingError('INVALID_REQUEST',422)
     if fetch=='ensure':
-        accepted=await runtime(request).meetings.get(p,meeting_id,fetch='ensure')
-        if isinstance(accepted,dict) and accepted.get('accepted'):
-            return JSONResponse(envelope(request,accepted),status_code=202)
-    return envelope(request,await runtime(request).meetings.recordings(p,meeting_id))
+        job_id=await runtime(request).queries.ensure_recordings(p,meeting_id)
+        if job_id:
+            return JSONResponse(envelope(request,{'accepted':True,'job_id':job_id,'resource':'recordings'}),status_code=202)
+    result=await runtime(request).meetings.recordings(p,meeting_id)
+    result['upstream_checked']=fetch=='ensure'
+    return envelope(request,result)
 
 @router.get('/recordings/{recording_id}/transcript')
 async def transcript(request:Request,recording_id:str,limit:int=Query(100,ge=1,le=500),cursor:str|None=Query(None,max_length=4096),

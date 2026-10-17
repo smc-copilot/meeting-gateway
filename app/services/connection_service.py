@@ -175,6 +175,14 @@ class ConnectionService:
 
     async def confirm_oauth(self,principal,connection_id):
         await self.rt.admin.human(principal)
+        return await self._confirm_oauth(principal,connection_id)
+
+    async def confirm_oauth_member(self,principal,connection_id):
+        if getattr(principal,'portal',False) or principal.actor_type!='MEMBER' or not principal.member_id:
+            raise MeetingError('PERMISSION_DENIED',403)
+        return await self._confirm_oauth(await self.rt.auth.revalidate(principal),connection_id)
+
+    async def _confirm_oauth(self,principal,connection_id):
         async with self.rt.db.lock('policy:'+principal.org_id),self.rt.db.transaction() as s:
             c=await self.rt.admin._get(s,Connection,principal.org_id,connection_id)
             app=await self.rt.admin._get(s,Application,principal.org_id,c.application_id)

@@ -30,7 +30,7 @@ class OperationService:
         if body.host_member_id != p.member_id:
             raise MeetingError('PERMISSION_DENIED', 403)
         c, app = await self.rt.connections.owned(p, body.connection_ref)
-        if c.kind != 'THIRD_PARTY_OAUTH' or c.member_id != p.member_id:
+        if c.member_id != p.member_id or c.kind not in {'THIRD_PARTY_OAUTH', 'ENTERPRISE_AKSK'}:
             raise MeetingError('PERMISSION_DENIED', 403)
         async with self.rt.db.session() as s:
             await self.rt.policy.require(s, p, 'meeting.create.self', target_member_id=p.member_id, connection_id=c.id)
