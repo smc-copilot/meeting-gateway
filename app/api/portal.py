@@ -94,4 +94,4 @@ async def deny(request:Request,transaction_id:str,p=Depends(human)):
 
 @router.get('/members')
 async def members(request:Request,q:str=Query('',max_length=100),p=Depends(human)):
-    return envelope(request,{'items':await runtime(request).backend.search(p.org_id,q)})
+    return envelope(request,{'items':await runtime(request).identity.search(p.org_id,q)})

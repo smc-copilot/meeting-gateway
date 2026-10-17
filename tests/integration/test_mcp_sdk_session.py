@@ -21,7 +21,7 @@ async def _pkce_token(rt, human):
         res = await client.get("/oauth/authorize", params=params, follow_redirects=False)
         txn = parse_qs(urlsplit(res.headers["location"]).query)["transaction_id"][0]
         approved = (await client.post("/api/v1/portal/authorization/" + txn + "/approve",
-            headers={"Authorization": "Bearer backend-m1"}, json={})).json()["data"]
+            headers={"Authorization": "Bearer " + rt.test_member_session}, json={})).json()["data"]
         code = parse_qs(urlsplit(approved["redirect_uri"]).query)["code"][0]
         token = (await client.post("/oauth/token", data={
             "grant_type": "authorization_code", "client_id": created["id"], "code": code,

@@ -37,16 +37,25 @@ class AuthService:
     async def portal_principal(self, backend_token: str, trace_id="") -> Principal:
         if not backend_token or backend_token.startswith(("mt_", "mr_", "mc_")):
             raise MeetingError("TOKEN_INVALID", 401)
-        member = await self.rt.backend.context(backend_token)
-        return Principal(org_id=member.org_id, actor_type="MEMBER", client_id="portal",
-            member_id=member.member_id, user_id=member.user_id, scopes=ALL_ACTIONS, portal=True,
-            member_role=member.member_role, is_super_admin=member.is_super_admin, trace_id=trace_id)
+        return await self.rt.identity.session_principal(backend_token, trace_id)
 
     async def _principal(self, session, row, client, *, trace_id=""):
+        identity_expires = getattr(row, "identity_expires_at", None)
+        identity_session_id = getattr(row, "identity_session_id", None)
+        identity_version = getattr(row, "identity_version", None)
+        auth_mode_epoch = getattr(row, "auth_mode_epoch", None)
+        member_role = "member"
         if row.actor_type != "SERVICE":
-            member = await self.rt.backend.resolve(row.org_id, row.member_id)
+            member = await self.rt.identity.require_member(row.org_id, row.member_id)
+            member_role = member.member_role
             if row.user_id and member.user_id != row.user_id:
                 raise MeetingError("TOKEN_INVALID", 401)
+            if identity_session_id:
+                from app.models import IdentitySession
+                stored = await session.get(IdentitySession, identity_session_id)
+                if stored is None or stored.revoked_at or stored.expires_at <= utcnow():
+                    raise MeetingError("IDENTITY_REAUTH_REQUIRED", 401)
+                identity_expires = stored.expires_at
         elif not client.allow_service:
             raise MeetingError("TOKEN_INVALID", 401)
         if row.actor_type == "AGENT":
@@ -56,7 +65,9 @@ class AuthService:
         return Principal(org_id=row.org_id, actor_type=row.actor_type, member_id=row.member_id, user_id=row.user_id,
             client_id=client.id, agent_id=row.agent_id, agent_grant_id=row.agent_grant_id, token_id=getattr(row, "id", None),
             audience=row.audience, scopes=frozenset(row.scopes) & frozenset(client.allowed_scopes),
-            policy_version=await self.rt.policy.policy_version(session, row.org_id), trace_id=trace_id)
+            policy_version=await self.rt.policy.policy_version(session, row.org_id), trace_id=trace_id,
+            member_role=member_role, is_super_admin=False, identity_expires_at=identity_expires,
+            identity_session_id=identity_session_id, identity_version=identity_version, auth_mode_epoch=auth_mode_epoch)
 
     async def authenticate(self, token: str, audience: str, *, trace_id="") -> Principal:
         self._audience(audience)
@@ -77,8 +88,8 @@ class AuthService:
     async def revalidate(self, principal: Principal) -> Principal:
         """Revalidate persistent authorization, including token revocation. A queued action is not an HTTP token refresh."""
         if principal.portal:
-            member = await self.rt.backend.resolve(principal.org_id, principal.member_id)
-            return principal.model_copy(update={"member_role": member.member_role, "is_super_admin": member.is_super_admin})
+            member = await self.rt.identity.require_member(principal.org_id, principal.member_id)
+            return principal.model_copy(update={"member_role": member.member_role, "is_super_admin": False})
         async with self.rt.db.session() as session:
             client = await session.get(Client, principal.client_id)
             if not live(client) or client.org_id != principal.org_id:
@@ -118,6 +129,10 @@ class AuthService:
             if not live(agent) or agent.org_id != principal.org_id or agent.client_id != client.id or agent.member_id != principal.member_id:
                 raise MeetingError("PERMISSION_DENIED", 403)
             limit = min(limit, agent.expires_at)
+        if principal.actor_type != "SERVICE":
+            if not principal.identity_expires_at:
+                raise MeetingError("IDENTITY_REAUTH_REQUIRED", 401)
+            limit = min(limit, principal.identity_expires_at)
         if limit <= now:
             raise MeetingError("TOKEN_INVALID", 401)
         token, refresh_token = random_token("mt"), random_token("mr") if refresh else None
@@ -125,7 +140,9 @@ class AuthService:
         row = AccessToken(org_id=principal.org_id, token_hash=digest(token), refresh_hash=digest(refresh_token) if refresh_token else None,
             family_id=family_id or new_id(), client_id=client.id, actor_type=principal.actor_type, member_id=principal.member_id,
             user_id=principal.user_id, agent_id=principal.agent_id, agent_grant_id=principal.agent_grant_id, audience=audience,
-            scopes=effective, expires_at=expires, refresh_expires_at=limit if refresh_token else None)
+            scopes=effective, expires_at=expires, refresh_expires_at=limit if refresh_token else None,
+            identity_session_id=principal.identity_session_id, identity_version=principal.identity_version,
+            auth_mode_epoch=principal.auth_mode_epoch)
         session.add(row)
         record(session, principal, "auth.token.issued", resource_id=row.id)
         return {"access_token": token, "token_type": "Bearer", "expires_in": max(1, int((expires-now).total_seconds())),
@@ -137,11 +154,12 @@ class AuthService:
             client = await self._client(session, client_id, secret)
             if client.agent_id:
                 raise MeetingError("PERMISSION_DENIED", 403)  # Agents use explicit consent, never an implicit service exchange.
-            member = await self.rt.backend.context(subject_token)
-            if member.org_id != client.org_id:
+            if not str(subject_token).startswith("ms_"):
+                raise MeetingError("IDENTITY_REAUTH_REQUIRED", 401)
+            holder = await self.rt.identity.session_principal(subject_token)
+            if holder.org_id != client.org_id:
                 raise MeetingError("PERMISSION_DENIED", 403)
-            principal = Principal(org_id=member.org_id, actor_type="MEMBER", member_id=member.member_id,
-                user_id=member.user_id, client_id=client.id, scopes=ALL_ACTIONS, audience=audience)
+            principal = holder.model_copy(update={"client_id": client.id, "portal": False, "audience": audience, "scopes": ALL_ACTIONS})
             return await self._issue(session, client, principal, scopes, audience)
 
     async def portal_exchange(self, principal):
@@ -229,7 +247,7 @@ class AuthService:
     async def approve_authorization(self, transaction_id, principal, agent_grant_id=None):
         if not principal.portal or principal.actor_type != "MEMBER":
             raise MeetingError("PERMISSION_DENIED", 403)
-        await self.rt.backend.resolve(principal.org_id, principal.member_id)
+        await self.rt.identity.require_member(principal.org_id, principal.member_id)
         async with self.rt.db.lock("consent:"+transaction_id):
             async with self.rt.db.transaction() as session:
                 row = await session.get(AuthTransaction, transaction_id)
@@ -269,7 +287,7 @@ class AuthService:
                 if redirect_uri != row.payload["redirect_uri"] or redirect_uri not in client.redirect_uris or audience != row.payload["resource"] or not verify_pkce(verifier, row.payload["code_challenge"]):
                     raise MeetingError("STATE_INVALID", 400)
                 principal = Principal.model_validate(row.payload["principal"])
-                await self.rt.backend.resolve(principal.org_id, principal.member_id)
+                await self.rt.identity.require_member(principal.org_id, principal.member_id)
                 result = await self._issue(session, client, principal, row.payload["scopes"], audience)
                 row.used_at = utcnow(); row.status = "CONSUMED"
                 return result

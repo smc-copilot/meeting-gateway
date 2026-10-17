@@ -1,5 +1,6 @@
 """Validated deployment configuration. No tenant Tencent secret is an environment default."""
 import base64
+import re
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
@@ -12,7 +13,21 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
     environment: Literal["development", "test", "production"] = "production"
     database_url: str = "postgresql+asyncpg://meeting:CHANGE_ME@postgres:5432/meeting"
-    nodeskclaw_backend_url: str = "http://nodeskclaw-backend:8000"
+    identity_mode: Literal["account_login"] = "account_login"
+    account_login_url: str = ""
+    meeting_component_id: str = ""
+    meeting_org_id: str = ""
+    meeting_bootstrap_admin_user_ids: list[str] = Field(default_factory=list)
+    auth_session_ttl_seconds: int = Field(900, ge=60, le=3600)
+    auth_admin_fresh_seconds: int = Field(300, ge=30, le=300)
+    account_login_allow_private_http: bool = False
+    tencent_meeting_auth_mode: Literal["oauth"] = "oauth"
+    tencent_meeting_corp_id: str = ""
+    tencent_meeting_app_id: str = ""
+    tencent_meeting_app_secret: SecretStr = SecretStr("")
+    tencent_meeting_allowed_open_corp_ids: list[str] = Field(default_factory=list)
+    tencent_meeting_oauth_return_uris: list[str] = Field(default_factory=list)
+    nodeskclaw_backend_url: str = ""
     backend_service_token: SecretStr = SecretStr("")
     metrics_token: SecretStr = SecretStr("")
     public_base_url: str = "https://meeting-gateway.example.invalid"
@@ -63,6 +78,22 @@ class Settings(BaseSettings):
     maintenance_interval_seconds: int = Field(3600, ge=30)
     max_http_concurrency: int = Field(100, ge=1, le=1000)
 
+    def _check_login_url(self):
+        if not self.account_login_url:
+            if self.environment == "production":
+                raise ValueError("IDENTITY_CONFIG_INVALID")
+            return
+        parsed = urlsplit(self.account_login_url)
+        if parsed.query or parsed.fragment or parsed.username or parsed.path != "/api/v1/auth/account-login":
+            raise ValueError("IDENTITY_CONFIG_INVALID")
+        if parsed.scheme == "http":
+            if not self.account_login_allow_private_http:
+                raise ValueError("IDENTITY_CONFIG_INVALID")
+        elif parsed.scheme != "https":
+            raise ValueError("IDENTITY_CONFIG_INVALID")
+        if self.meeting_component_id and not re.fullmatch(r"[a-z][a-z0-9-]{2,63}", self.meeting_component_id):
+            raise ValueError("IDENTITY_CONFIG_INVALID")
+
     @model_validator(mode="after")
     def validate_deployment(self):
         self.public_base_url = self.public_base_url.rstrip("/")
@@ -72,12 +103,24 @@ class Settings(BaseSettings):
         self.mcp_resource_uri = self.mcp_resource_uri or self.public_base_url + "/mcp"
         if self.rest_resource_uri == self.mcp_resource_uri:
             raise ValueError("REST and MCP audiences must differ")
+        if self.nodeskclaw_backend_url or self.backend_service_token.get_secret_value():
+            raise ValueError("LEGACY_IDENTITY_CONFIG_FORBIDDEN")
+        if self.auth_admin_fresh_seconds > self.auth_session_ttl_seconds:
+            raise ValueError("IDENTITY_CONFIG_INVALID")
+        if self.environment == "test" and not self.account_login_url:
+            self.account_login_url = "http://127.0.0.1:9/api/v1/auth/account-login"
+            self.account_login_allow_private_http = True
+            self.meeting_component_id = self.meeting_component_id or "meeting-gateway"
+            self.meeting_org_id = self.meeting_org_id or "o1"
+            if not self.meeting_bootstrap_admin_user_ids:
+                self.meeting_bootstrap_admin_user_ids = ["u-m1", "u1"]
+        self._check_login_url()
         if self.environment == "production":
             if not self.database_url.startswith("postgresql+asyncpg://"):
                 raise ValueError("Production requires PostgreSQL asyncpg")
-            if not self.keyring_json or not self.backend_service_token.get_secret_value():
-                raise ValueError("Production encryption keys and Backend service credential are required")
-            if "CHANGE_ME" in self.database_url or len(self.backend_service_token.get_secret_value()) < 32:
+            if not self.keyring_json or not self.meeting_component_id or not self.meeting_org_id or not self.account_login_url:
+                raise ValueError("IDENTITY_CONFIG_INVALID")
+            if "CHANGE_ME" in self.database_url:
                 raise ValueError("Replace bootstrap credentials")
             for url in [self.public_base_url, self.portal_base_url, self.rest_resource_uri, self.mcp_resource_uri]:
                 parsed = urlsplit(url)

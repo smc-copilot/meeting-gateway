@@ -127,7 +127,7 @@ class TencentClient:
                     IdentityBinding.org_id==c.org_id,IdentityBinding.external_id==operator.id,
                     IdentityBinding.identity_type=='userid',IdentityBinding.enabled.is_(True),IdentityBinding.deleted_at.is_(None)))
                 if mapping is None:raise MeetingError('IDENTITY_UNBOUND',409)
-                await self.rt.backend.resolve(c.org_id,mapping.member_id)
+                await self.rt.identity.require_member(c.org_id,mapping.member_id)
                 _,material=await self.rt.admin.read_secret(s,app,'AKSK')
         method='POST' if operation in {'create','sts'} else 'GET'
         if operation=='upcoming':path='/v1/meetings';query.update(userid=operator.id,instanceid=1)

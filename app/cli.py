@@ -8,7 +8,7 @@ import secrets
 from urllib.parse import urlsplit
 
 
-def generate_env(path: Path, public_url: str, portal_url: str, backend_url: str, database_host='postgres'):
+def generate_env(path: Path, public_url: str, portal_url: str, login_url: str, database_host='postgres'):
     public_url=public_url.rstrip('/');portal_url=portal_url.rstrip('/')
     for value in (public_url,portal_url):
         parsed=urlsplit(value)
@@ -19,7 +19,11 @@ def generate_env(path: Path, public_url: str, portal_url: str, backend_url: str,
     password=secrets.token_hex(24)
     values={'ENVIRONMENT':'production','POSTGRES_PASSWORD':password,
         'DATABASE_URL':f'postgresql+asyncpg://meeting:{password}@{database_host}:5432/meeting',
-        'NODESKCLAW_BACKEND_URL':backend_url.rstrip('/'),'BACKEND_SERVICE_TOKEN':secrets.token_urlsafe(48),
+        'IDENTITY_MODE':'account_login','ACCOUNT_LOGIN_URL':login_url,
+        'ACCOUNT_LOGIN_ALLOW_PRIVATE_HTTP':'false','MEETING_COMPONENT_ID':'meeting-gateway',
+        'MEETING_ORG_ID':'','MEETING_BOOTSTRAP_ADMIN_USER_IDS':'[]','AUTH_SESSION_TTL_SECONDS':'900',
+        'AUTH_ADMIN_FRESH_SECONDS':'300','TENCENT_MEETING_AUTH_MODE':'oauth','TENCENT_MEETING_CORP_ID':'',
+        'TENCENT_MEETING_APP_ID':'','TENCENT_MEETING_APP_SECRET':'','TENCENT_MEETING_ALLOWED_OPEN_CORP_IDS':'[]',
         'METRICS_TOKEN':secrets.token_urlsafe(48),'PUBLIC_BASE_URL':public_url,'PORTAL_BASE_URL':portal_url,
         'KEYRING_JSON':json.dumps({'v1':base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()}),
         'ACTIVE_KEY_ID':'v1','ALLOWED_HOSTS':json.dumps([urlsplit(public_url).hostname,'127.0.0.1','localhost']),
@@ -39,14 +43,28 @@ def main():
     create.add_argument('--output',type=Path,default=Path('.env'))
     create.add_argument('--public-base-url',required=True)
     create.add_argument('--portal-base-url',required=True)
-    create.add_argument('--backend-url',default='http://nodeskclaw-backend:8000')
+    create.add_argument('--backend-url',default='')
+    create.add_argument('--account-login-url',default='http://127.0.0.1:9/api/v1/auth/account-login')
     create.add_argument('--database-host',default='postgres')
     sub.add_parser('check')
+    migrate=sub.add_parser('identity-migrate')
+    migrate.add_argument('--map',type=Path,required=True)
     args=parser.parse_args()
     try:
         if args.command=='generate-env':
-            generate_env(args.output,args.public_base_url,args.portal_base_url,args.backend_url,args.database_host)
-            print(f'Created {args.output}; keep it private. No credentials were printed. Configure the matching Backend identity token.')
+            generate_env(args.output,args.public_base_url,args.portal_base_url,args.account_login_url,args.database_host)
+            print(f'Created {args.output}; keep it private. No credentials were printed. Fill organization id and Tencent secret only on the server.')
+        elif args.command=='identity-migrate':
+            import asyncio
+            from app.core.config import Settings
+            from app.runtime import Runtime
+            rows=json.loads(args.map.read_text(encoding='utf-8'))
+            runtime=Runtime(Settings())
+            try:
+                result=asyncio.run(runtime.identity.apply_legacy_map(rows))
+            finally:
+                asyncio.run(runtime.close())
+            print(json.dumps({'mapped':result['mapped']}))
         else:
             from app.core.config import Settings
             settings=Settings()

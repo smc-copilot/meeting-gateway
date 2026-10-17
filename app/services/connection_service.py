@@ -33,7 +33,7 @@ class ConnectionService:
         return c,a
 
     async def create_enterprise(self,principal,body):
-        await self.rt.backend.resolve(principal.org_id,body.admin_member_id)
+        await self.rt.identity.require_member(principal.org_id,body.admin_member_id)
         async with self.rt.db.lock('policy:'+principal.org_id),self.rt.db.transaction() as s:
             await self.rt.admin.require(s,principal,'meeting.application.manage')
             app=await self.rt.admin._get(s,Application,principal.org_id,body.application_id)
@@ -58,7 +58,7 @@ class ConnectionService:
         """Resolve an invitee, not an operator. An OAuth open_id is scoped to this same app and corporation."""
         if connection.kind == 'ENTERPRISE_AKSK':
             return await self.operator(connection, member_id=member_id)
-        await self.rt.backend.resolve(connection.org_id, member_id)
+        await self.rt.identity.require_member(connection.org_id, member_id)
         async with self.rt.db.session() as session:
             binding = await session.scalar(select(IdentityBinding).where(
                 IdentityBinding.org_id == connection.org_id,
@@ -77,7 +77,7 @@ class ConnectionService:
             return Operator(id=connection.external_id,type=2)
         target=connection.member_id if for_ingestion else member_id
         if target is None:raise MeetingError('IDENTITY_UNBOUND',409)
-        await self.rt.backend.resolve(connection.org_id,target)
+        await self.rt.identity.require_member(connection.org_id,target)
         async with self.rt.db.session() as s:
             binding=await s.scalar(select(IdentityBinding).where(IdentityBinding.application_id==connection.application_id,
                 IdentityBinding.org_id==connection.org_id,IdentityBinding.member_id==target,IdentityBinding.identity_type=='userid',
@@ -103,7 +103,13 @@ class ConnectionService:
             if principal.actor_type!='MEMBER' or not principal.member_id:
                 raise MeetingError('PERMISSION_DENIED',403)
         async with self.rt.db.transaction() as s:
-            app=await self.rt.admin._get(s,Application,principal.org_id,application_id)
+            if not application_id:
+                app=await s.scalar(select(Application).where(Application.org_id==principal.org_id,
+                    Application.deleted_at.is_(None), Application.application_type=='THIRD_PARTY_OAUTH'))
+                if not app or (app.settings_data or {}).get('owner')!='ENV':
+                    raise MeetingError('INVALID_REQUEST',422)
+            else:
+                app=await self.rt.admin._get(s,Application,principal.org_id,application_id)
             if not app.enabled or app.application_type!='THIRD_PARTY_OAUTH':raise MeetingError('INVALID_REQUEST',422)
             allowed=list((app.settings_data or {}).get('oauth_return_uris') or [])
             if return_to is not None and return_to not in allowed:
@@ -129,7 +135,7 @@ class ConnectionService:
                 if not tx or tx.status!='PENDING' or tx.expires_at<=utcnow():raise MeetingError('STATE_INVALID',400)
                 app=await self.rt.admin._get(s,Application,tx.org_id,application_id)
                 if not app.enabled:raise MeetingError('UPSTREAM_REAUTH_REQUIRED',409)
-                await self.rt.backend.resolve(tx.org_id,tx.member_id)
+                await self.rt.identity.require_member(tx.org_id,tx.member_id)
                 _,secret=await self.rt.admin.read_secret(s,app,'OAUTH_APP')
                 # Mark consumed before network. A timeout requires starting a new authorization, not replaying a code.
                 tx.status='EXCHANGING';tx.used_at=utcnow()
@@ -213,7 +219,7 @@ class ConnectionService:
                 app=await self.rt.admin._get(s,Application,c.org_id,c.application_id)
                 if not app.enabled or c.status not in {'ACTIVE','DEGRADED'} or not c.corporate_verified or c.external_corp_id not in app.allowed_open_corp_ids:
                     raise MeetingError('UPSTREAM_REAUTH_REQUIRED',409)
-                await self.rt.backend.resolve(c.org_id,c.member_id)
+                await self.rt.identity.require_member(c.org_id,c.member_id)
                 cred,token=await self.rt.admin.read_secret(s,app,'OAUTH_TOKEN',connection_id=c.id)
                 if cred.expires_at>utcnow()+timedelta(seconds=120):return token
             try:

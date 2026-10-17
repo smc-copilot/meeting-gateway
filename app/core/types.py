@@ -39,6 +39,11 @@ class Principal(BaseModel):
     member_role: str = "member"
     is_super_admin: bool = False
     trace_id: str = ""
+    session_issued_at: datetime | None = None
+    identity_expires_at: datetime | None = None
+    identity_session_id: str | None = None
+    identity_version: int | None = None
+    auth_mode_epoch: int | None = None
 
     @property
     def subject_id(self) -> str:

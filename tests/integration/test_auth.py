@@ -31,10 +31,16 @@ async def runtime(tmp_path):
     from app.runtime import Runtime
     settings = Settings(environment="test", database_url=f"sqlite:///{tmp_path}/auth.sqlite",
                         keyring_json={"v1": base64.urlsafe_b64encode(b"x"*32).decode()},
-                        backend_service_token="b"*32, storage_path=tmp_path/"private",
+                        storage_path=tmp_path/"private",
                         public_base_url="https://gateway.example.org", portal_base_url="https://portal.example.org")
     rt = Runtime(settings, backend=TestBackend())
     await rt.db.create_schema_for_test()
+    from app.models import LocalMember
+    async with rt.db.transaction() as s:
+        s.add(LocalMember(id="m1", org_id="o1", component_id="meeting-gateway", issuer_id="account-login-v1",
+            external_user_id="u1", source="ACCOUNT_LOGIN", local_enabled=True, state="ACTIVE",
+            identity_version=1, member_role="admin", profile_json={"name": "m1"}))
+    rt.test_member_session = await rt.identity.issue_session_for_member("m1")
     async with rt.db.transaction() as s:
         s.add(Client(id="c1", org_id="o1", name="internal", client_type="CONFIDENTIAL", secret_hash=digest("client-secret-32-chars-long-value"),
                    allowed_scopes=["meeting.read", "meeting.content.read", "meeting.create.self"], redirect_uris=["https://agent.example.org/callback"],
@@ -46,7 +52,7 @@ async def runtime(tmp_path):
 
 
 async def issue(rt, scopes=None, audience=None):
-    return await rt.auth.exchange("c1", "client-secret-32-chars-long-value", "real-backend-session",
+    return await rt.auth.exchange("c1", "client-secret-32-chars-long-value", rt.test_member_session,
                                   scopes or ["meeting.read"], audience or rt.settings.rest_resource_uri)
 
 
@@ -60,7 +66,7 @@ async def test_exchange_binds_real_member_and_audience(runtime):
 
 
 async def test_exchange_requires_both_client_and_employee(runtime):
-    for secret, employee in [("wrong", "real-backend-session"), ("client-secret-32-chars-long-value", "m1")]:
+    for secret, employee in [("wrong", runtime.test_member_session), ("client-secret-32-chars-long-value", "m1")]:
         with pytest.raises(MeetingError):
             await runtime.auth.exchange("c1", secret, employee, ["meeting.read"], runtime.settings.rest_resource_uri)
 
@@ -71,21 +77,21 @@ async def test_request_cannot_expand_scope(runtime):
 
 
 async def test_raw_upstream_or_backend_token_rejected(runtime):
-    for token in ["real-backend-session", "tencent-token", "bad-value", "mr_refresh-token"]:
+    for token in [runtime.test_member_session, "tencent-token", "bad-value", "mr_refresh-token"]:
         with pytest.raises(MeetingError):
             await runtime.auth.authenticate(token, runtime.settings.mcp_resource_uri)
 
 
 async def test_member_disable_and_identity_outage_fail_closed(runtime):
+    from app.models import LocalMember
     token = await issue(runtime)
-    runtime.backend.disabled = True
+    async with runtime.db.transaction() as s:
+        member = await s.get(LocalMember, "m1")
+        member.local_enabled = False
+        member.state = "LOCAL_DISABLED"
     with pytest.raises(MeetingError) as exc:
         await runtime.auth.authenticate(token["access_token"], runtime.settings.rest_resource_uri)
-    assert exc.value.reason == "MEMBER_INACTIVE"
-    runtime.backend.disabled = False; runtime.backend.unavailable = True
-    with pytest.raises(MeetingError) as exc:
-        await runtime.auth.authenticate(token["access_token"], runtime.settings.rest_resource_uri)
-    assert exc.value.reason == "IDENTITY_SERVICE_UNAVAILABLE"
+    assert exc.value.reason == "LOCAL_MEMBER_DISABLED"
 
 
 async def test_client_disable_revokes_existing_access(runtime):
@@ -130,8 +136,7 @@ async def test_authorization_code_pkce_once(runtime):
     request = await runtime.auth.begin_authorization(client_id="c1", redirect_uri="https://agent.example.org/callback",
         resource=runtime.settings.mcp_resource_uri, scope="meeting.read", state="state-value",
         code_challenge=pkce_challenge(verifier), code_challenge_method="S256", response_type="code")
-    portal = Principal(org_id="o1", member_id="m1", user_id="u1", actor_type="MEMBER", client_id="portal", portal=True,
-                       scopes=frozenset({"meeting.read"}))
+    portal = await runtime.identity.session_principal(runtime.test_member_session)
     result = await runtime.auth.approve_authorization(request["transaction_id"], portal)
     from urllib.parse import urlsplit, parse_qs
     code = parse_qs(urlsplit(result["redirect_uri"]).query)["code"][0]

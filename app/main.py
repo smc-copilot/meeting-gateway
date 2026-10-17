@@ -77,9 +77,7 @@ def create_app(settings=None,*,runtime=None):
     @app.get('/health/ready',tags=['health'])
     async def ready():
         db=await rt.db.ready()
-        backend=await rt.backend.ready() if hasattr(rt.backend,'ready') else False
-        # A Backend outage must not remove every callback receiver from load balancing.
-        return JSONResponse({'status':'ok' if db else 'unavailable','database':db,'backend':backend},status_code=200 if db else 503)
+        return JSONResponse({'status':'ok' if db else 'unavailable','database':db,'backend':False},status_code=200 if db else 503)
 
     @app.get('/metrics',include_in_schema=False)
     async def metrics(request:Request):

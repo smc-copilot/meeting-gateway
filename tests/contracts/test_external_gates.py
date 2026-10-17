@@ -18,7 +18,7 @@ async def test_postgres_independent_connections_lock_and_claim():
     from app.runtime import Runtime
     from app.core.types import Principal
     settings=Settings(environment='test',database_url=url,keyring_json={'v1':base64.urlsafe_b64encode(b't'*32).decode()},
-        backend_service_token='x'*40,public_base_url='https://meeting.example.org',portal_base_url='https://portal.example.org')
+        public_base_url='https://meeting.example.org',portal_base_url='https://portal.example.org')
     first,second=Runtime(settings),Runtime(settings)
     entered=[]
     gate=asyncio.Event()

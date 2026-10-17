@@ -4,7 +4,7 @@ from functools import cached_property
 import httpx
 from app.core.database import Database
 from app.core.security import KeyRing, CursorCodec
-from app.integrations.nodeskclaw_backend.client import BackendClient
+from app.integrations.nodeskclaw_backend.client import AccountLoginClient
 from app.storage.local import LocalEncryptedStorage
 
 
@@ -14,7 +14,8 @@ class Runtime:
         self.db = Database(settings.database_url, allow_sqlite=settings.environment in {"test", "development"})
         self.keys = KeyRing(settings.keyring_json, settings.active_key_id)
         self.cursors = CursorCodec(self.keys.purpose_key("cursor"))
-        self.backend = backend or BackendClient(settings.nodeskclaw_backend_url, settings.backend_service_token.get_secret_value())
+        self.accounts = AccountLoginClient(settings)
+        self.backend = backend
         self.upstream_http = upstream_http or httpx.AsyncClient(timeout=settings.upstream_timeout_seconds,
                                                                follow_redirects=False, trust_env=False)
         self._provider = provider
@@ -25,6 +26,10 @@ class Runtime:
     def policy(self):
         from app.services.permission_service import PermissionService
         return PermissionService(self)
+    @cached_property
+    def identity(self):
+        from app.services.identity_service import IdentityService
+        return IdentityService(self)
     @cached_property
     def auth(self):
         from app.services.auth_service import AuthService
@@ -82,5 +87,7 @@ class Runtime:
 
     async def close(self):
         await self.upstream_http.aclose()
-        await self.backend.close()
+        await self.accounts.close()
+        if self.backend is not None:
+            await self.backend.close()
         await self.db.close()

@@ -4,3 +4,4 @@ from app.models.authorization import Client, AccessGrant, AgentGrant, AccessToke
 from app.models.resources import Meeting, Recording, Asset, ResourceOrigin, ResourceACL, Participant
 from app.models.operations import Operation, DownloadTicket, SyncJob, SyncPolicy
 from app.models.events import EventInbox, Subscription, EventOutbox, DeliveredResource, AuditLog, RateLimit, DownloadQuota
+from app.models.identity import IdentityDeployment, LocalMember, LoginObservation, IdentitySession, LegacyMemberMap

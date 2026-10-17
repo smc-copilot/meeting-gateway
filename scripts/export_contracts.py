@@ -19,7 +19,7 @@ def write(path,value):
 
 with tempfile.TemporaryDirectory() as directory:
     settings=Settings(environment='test',database_url='sqlite://',keyring_json={'v1':base64.urlsafe_b64encode(b'c'*32).decode()},
-        storage_path=Path(directory),backend_service_token='s'*32,public_base_url='https://meeting.example.org',portal_base_url='https://portal.example.org')
+        storage_path=Path(directory),public_base_url='https://meeting.example.org',portal_base_url='https://portal.example.org')
     app=create_app(settings)
     schema=app.openapi()
     schema['info']['description']='Generated source contract; example.org is illustrative. Credentials and tenancy are resolved by the gateway.'

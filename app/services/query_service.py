@@ -14,6 +14,8 @@ class QueryService:
         self.rt = runtime
 
     async def submit(self, principal, body: MeetingQuery):
+        if body.selection == 'USER_RECORDINGS':
+            body = body.model_copy(update={'selection': 'RECORDINGS'})
         if body.selection == 'CORP_WINDOW':
             raise MeetingError('PERMISSION_DENIED', 403)
         p = await self.rt.auth.revalidate(principal)
@@ -41,6 +43,8 @@ class QueryService:
 
     async def run(self, job, lease_token):
         body = MeetingQuery.model_validate(job.payload)
+        if body.selection == 'USER_RECORDINGS':
+            body = body.model_copy(update={'selection': 'RECORDINGS'})
         if body.selection == 'CORP_WINDOW':
             raise MeetingError('PERMISSION_DENIED', 403)
         p = await self.rt.auth.revalidate(Principal.model_validate(job.principal_data))

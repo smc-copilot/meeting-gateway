@@ -54,7 +54,7 @@ async def test_global_stop_does_not_execute_worker_jobs(rt, human, enterprise_ap
         assert (await s.get(SyncJob, ident)).state == 'PENDING'
 
 async def test_oauth_invitee_identity_does_not_delegate_operator_authority(rt,human,enterprise_app_body):
-    from app.models import Application,Connection,IdentityBinding
+    from app.models import Application,Connection,IdentityBinding,LocalMember
     from app.schemas.requests import ApplicationCreate
     from urllib.parse import parse_qs,urlsplit
     await rt.admin.bootstrap(human)
@@ -70,5 +70,8 @@ async def test_oauth_invitee_identity_does_not_delegate_operator_authority(rt,hu
             external_corp_id='open-corp',verification_source='verified second OAuth consent',verified_by='m2',verified_at=utcnow(),enabled=True))
     assert (await rt.connections.invitee(c,'m2')).id=='open-m2'
     with pytest.raises(MeetingError):await rt.connections.operator(c,member_id='m2')
-    rt.backend.disabled.add('m2')
+    async with rt.db.transaction() as s:
+        member=await s.get(LocalMember,'m2')
+        member.local_enabled=False
+        member.state='LOCAL_DISABLED'
     with pytest.raises(MeetingError):await rt.connections.invitee(c,'m2')

@@ -36,7 +36,12 @@ async def oauth(request:Request,application_id:str,state:str=Query(min_length=1,
     if not (auth_code or code) or (auth_code and code and auth_code!=code):raise MeetingError('STATE_INVALID',400)
     rt=runtime(request)
     value=await rt.connections.oauth_callback(application_id,state,auth_code or code)
-    target=value.get('return_to') or rt.settings.portal_base_url+'/meeting/connections'
+    target=value.get('return_to') or rt.settings.public_base_url+'/oauth/tencent/result'
     separator='&' if '?' in target else '?'
     return RedirectResponse(target+separator+urlencode({'connection_id':value['connection_id']}),
         status_code=303,headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer'})
+
+@router.get('/oauth/tencent/result')
+async def oauth_result():
+    page = '<!doctype html><meta charset="utf-8"><title>授权结果</title><p>授权已返回网关。请回到原业务系统查看结果。本页不包含令牌。</p>'
+    return Response(page, media_type='text/html', headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer'})

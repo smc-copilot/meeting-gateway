@@ -96,7 +96,7 @@ class ClientCreate(StrictModel):
 
 
 class MeetingQuery(StrictModel):
-    selection: Literal["MEETING_ID", "USER_WINDOW", "CORP_WINDOW", "RECORDINGS"]
+    selection: Literal["MEETING_ID", "USER_WINDOW", "CORP_WINDOW", "RECORDINGS", "USER_RECORDINGS"]
     connection_ref: str = Field(min_length=1, max_length=64)
     meeting_id: str | None = Field(None, max_length=128)
     target_member_id: str | None = Field(None, max_length=64)
@@ -113,8 +113,8 @@ class OperationReject(StrictModel):
 
 
 class OAuthStart(StrictModel):
-    application_id: str = Field(min_length=1, max_length=64)
-    return_to: str = Field(min_length=8, max_length=512)
+    application_id: str = ""
+    return_to: str | None = None
 
 
 class AgentGrantCreate(StrictModel):

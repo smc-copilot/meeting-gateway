@@ -73,6 +73,9 @@ class AccessToken(OrgRecord):
     refresh_expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     refresh_used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    identity_session_id: Mapped[str | None] = mapped_column(String(36))
+    identity_version: Mapped[int | None] = mapped_column(BigInteger)
+    auth_mode_epoch: Mapped[int | None] = mapped_column(BigInteger)
 
 
 class AuthTransaction(OrgRecord):

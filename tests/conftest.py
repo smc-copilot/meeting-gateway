@@ -69,13 +69,20 @@ class FakeTencent:
 async def rt(tmp_path):
     provider = FakeTencent()
     settings = Settings(environment='test', database_url=f'sqlite:///{tmp_path}/meeting.sqlite',
-        keyring_json={'v1':base64.urlsafe_b64encode(b'x'*32).decode()},backend_service_token='s'*32,
+        keyring_json={'v1':base64.urlsafe_b64encode(b'x'*32).decode()},
         storage_path=tmp_path/'private',public_base_url='https://meeting.example.org',
         portal_base_url='https://portal.example.org',allowed_hosts=['testserver','meeting.example.org'],
         upstream_min_interval_seconds=0,meeting_create_enabled=True,meeting_mcp_enabled=True,
         meeting_corp_sync_enabled=True,media_allowed_hosts=['media.example.org'])
     runtime = Runtime(settings,backend=FakeBackend(),provider=provider)
     await runtime.db.create_schema_for_test()
+    from app.models import LocalMember
+    async with runtime.db.transaction() as session:
+        for member_id, role in (('m1', 'admin'), ('m2', 'member'), ('other', 'member')):
+            session.add(LocalMember(id=member_id, org_id='o1', component_id='meeting-gateway', issuer_id='account-login-v1',
+                external_user_id='u-' + member_id, source='ACCOUNT_LOGIN', local_enabled=True, state='ACTIVE',
+                identity_version=1, member_role=role, profile_json={'name': member_id}))
+    runtime.test_member_session = await runtime.identity.issue_session_for_member('m1')
     yield runtime
     await runtime.close()
 

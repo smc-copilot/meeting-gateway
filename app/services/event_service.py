@@ -117,7 +117,7 @@ class EventService:
             for c in rows:
                 last=c.id
                 try:
-                    member=await self.rt.backend.resolve(c.org_id,c.member_id)
+                    member=await self.rt.identity.require_member(c.org_id,c.member_id)
                     p=Principal(org_id=c.org_id,actor_type='MEMBER',client_id=client.id,member_id=member.member_id,user_id=member.user_id,
                         scopes=frozenset(client.allowed_scopes),audience=self.rt.settings.rest_resource_uri)
                     async with self.rt.db.transaction() as s:
@@ -196,7 +196,7 @@ class EventService:
         client=await s.get(Client,sub.client_id)
         if not live(client) or client.org_id!=sub.org_id:raise MeetingError('PERMISSION_DENIED',403)
         if sub.member_id:
-            member=await self.rt.backend.resolve(sub.org_id,sub.member_id)
+            member=await self.rt.identity.require_member(sub.org_id,sub.member_id)
             actor='AGENT' if sub.agent_grant_id else 'MEMBER'
             p=Principal(org_id=sub.org_id,client_id=client.id,actor_type=actor,member_id=member.member_id,user_id=member.user_id,
                 scopes=frozenset(client.allowed_scopes),agent_id=client.agent_id if actor=='AGENT' else None,

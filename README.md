@@ -58,21 +58,7 @@ uv run python -m app.cli generate-env \
 
 ### 2. 配置 Backend 身份桥
 
-在 **Backend** 进程环境中配置：
-
-```text
-MEETING_IDENTITY_SERVICE_TOKEN=<与 Meeting .env 的 BACKEND_SERVICE_TOKEN 相同的随机值>
-```
-
-这是仅供身份查询的服务凭据，**不是 Backend 的 `JWT_SECRET`**。网关不直接读 Backend 数据库。新增接口：
-
-```text
-GET  /api/v1/auth/meeting-context
-POST /api/v1/internal/meeting/principals/resolve
-POST /api/v1/internal/meeting/principals/search
-```
-
-`/internal/meeting/` 还应在网络层限制为网关可达。身份接口同时核对组织启用状态、员工有效性、软删除和强制改密状态；不会返回会议权限。
+身份只走账号登录。网关 `POST /api/v1/auth/account-login` 把账号和密码转发到配置里的唯一登录地址，然后签发本地 `ms_` 会话。不要配置 `NODESKCLAW_BACKEND_URL` 或 `BACKEND_SERVICE_TOKEN`。不要调用 `meeting-context`、`principals/resolve`、`principals/search`。
 
 ### 3. 启动数据库、迁移、API 和 Worker
 

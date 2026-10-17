@@ -1,15 +1,33 @@
-import { useAuthStore } from '@/stores/auth'
 import type { Row, Page } from './types'
 
 const base = String(import.meta.env.VITE_MEETING_GATEWAY_URL || '/meeting-gateway').replace(/\/$/, '')
 let access: { value: string; expires: number; backend: string } | null = null
+let gatewaySession: { token: string; expires: number } | null = null
 export class GatewayError extends Error {
   constructor(public reason: string, public trace: string, public status: number, message: string) { super(message) }
 }
+export function hasGatewaySession(): boolean {
+  return !!gatewaySession && gatewaySession.expires > Date.now()
+}
+export function clearGatewaySession() {
+  gatewaySession = null
+  access = null
+}
+export async function loginAccount(account: string, password: string) {
+  const response = await fetch(base + '/api/v1/auth/account-login', {
+    method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ account, password }) })
+  const data = await parse(response)
+  gatewaySession = { token: data.session_token, expires: Date.now() + data.expires_in * 1000 }
+  access = null
+  return data
+}
 function backendToken(): string {
-  const value = useAuthStore().token
-  if (!value) { access = null; throw new GatewayError('TOKEN_INVALID', '', 401, 'Authentication required') }
-  return value
+  if (!gatewaySession || gatewaySession.expires <= Date.now()) {
+    clearGatewaySession()
+    throw new GatewayError('IDENTITY_REAUTH_REQUIRED', '', 401, 'Sign in again')
+  }
+  return gatewaySession.token
 }
 async function parse(response: Response): Promise<any> {
   const data = await response.json().catch(() => ({}))

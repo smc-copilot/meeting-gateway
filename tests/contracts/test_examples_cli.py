@@ -69,8 +69,10 @@ def test_generate_env_never_overwrites_and_contains_valid_random_keys(tmp_path):
     first = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     assert first.returncode == 0, first.stderr
     values = dict(line.split('=',1) for line in target.read_text().splitlines() if line and not line.startswith('#'))
-    assert len(values['BACKEND_SERVICE_TOKEN']) >= 32
-    assert values['BACKEND_SERVICE_TOKEN'] not in first.stdout
+    assert values['IDENTITY_MODE'] == 'account_login'
+    assert 'BACKEND_SERVICE_TOKEN' not in values
+    assert len(values['METRICS_TOKEN']) >= 32
+    assert values['METRICS_TOKEN'] not in first.stdout
     keys = json.loads(values['KEYRING_JSON'])
     assert all(len(base64.urlsafe_b64decode(v)) == 32 for v in keys.values())
     assert os.stat(target).st_mode & 0o777 == 0o600

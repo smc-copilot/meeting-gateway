@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, downloadAsset, errorText } from './client'
+import { api, downloadAsset, errorText, hasGatewaySession, loginAccount, clearGatewaySession } from './client'
 import { useMeetingText } from './locale'
 import type { Row, Page, JsonSchema } from './types'
 import SchemaForm from './SchemaForm.vue'
@@ -18,6 +18,14 @@ const operation=ref<Row|null>(null), subtab=ref(''), modal=ref<{name:string;path
 const diagConnection=ref(''), diagProbe=ref('configuration'), diagRecording=ref(''), probeOpen=ref(false)
 const probes=['configuration','oauth_user_info','upcoming','history','records','corp_records','record_detail','transcript','minutes']
 const reason=ref(''), reconcileId=ref('')
+const signedIn=ref(hasGatewaySession()), loginAccountValue=ref(''), loginPasswordValue=ref(''), localMemberId=ref('')
+async function submitLogin(){
+ const password=loginPasswordValue.value
+ loginPasswordValue.value=''
+ const data=await run(()=>loginAccount(loginAccountValue.value, password), false)
+ if(data){ signedIn.value=true; await refresh() }
+}
+function signOut(){ clearGatewaySession(); signedIn.value=false; context.value={actions:[],features:{}} }
 const minutesRemaining=computed(()=>{
  const deadline=operation.value?.confirm_deadline
  if(!deadline) return 0
@@ -47,6 +55,7 @@ function open(name:string,path:string,title:string,options:{method?:string;busin
 }
 async function run(task:()=>Promise<any>, show=true){busy.value=true;error.value='';try{const data=await task();if(show)result.value=data;return data}catch(e){error.value=errorText(e);return null}finally{busy.value=false}}
 async function refresh(next=false){
+ if(!signedIn.value) return
  const captured=section.value
  await run(async()=>{
   const ctx=await api('/api/v1/portal/context'); context.value=ctx
@@ -111,13 +120,26 @@ async function diagnostics(){await run(()=>api('/api/v1/admin/connections/'+enco
  method:'POST',body:{probe:diagProbe.value,recording_id:diagRecording.value || null}}))}
 async function requestSTS(){await run(()=>api('/api/v1/admin/connections/'+encodeURIComponent(diagConnection.value)+'/sts',{method:'POST',body:{valid_hours:6}}))}
 async function findMembers(){await run(async()=>{members.value=(await api('/api/v1/portal/members?q='+encodeURIComponent(query.value))).items},false)}
+async function changeMember(enable:boolean){
+ const why=window.prompt(tr('reason')); if(!why || !localMemberId.value) return
+ const action=enable?'enable':'disable'
+ await run(()=>api('/api/v1/admin/members/'+encodeURIComponent(localMemberId.value)+'/'+action,{method:'POST',body:{reason:why}}))
+}
 async function switchTab(value:string){subtab.value=value;cursor.value=null;await refresh()}
 watch(section,()=>{subtab.value='';cursor.value=null;rows.value=[];result.value=null;selected.value=null;content.value=null;modal.value=null;error.value='';void refresh()})
-onMounted(()=>{void refresh()})
+onMounted(()=>{ if(signedIn.value) void refresh() })
 </script>
 <template>
  <main class="meeting-console">
   <h1>{{tr('title')}}</h1>
+  <form v-if="!signedIn" class="panel" @submit.prevent="submitLogin">
+   <h2>{{tr('loginTitle')}}</h2>
+   <p>{{tr('loginHint')}}</p>
+   <label>{{tr('loginAccount')}}<input v-model="loginAccountValue" autocomplete="username" /></label>
+   <label>{{tr('loginPassword')}}<input v-model="loginPasswordValue" type="password" autocomplete="current-password" /></label>
+   <button type="submit" :disabled="busy">{{tr('loginSubmit')}}</button>
+  </form>
+  <div v-else class="toolbar"><button type="button" @click="signOut">{{tr('close')}}</button></div>
   <nav aria-label="Meeting navigation"><RouterLink v-for="item in menu" :key="item[0]" :to="'/meeting/'+item[0]">{{tr(item[0])}}</RouterLink></nav>
   <p class="notice">{{tr('securityNote')}}</p>
   <p v-if="error" class="error" role="alert">{{error}}</p>
@@ -145,6 +167,11 @@ onMounted(()=>{void refresh()})
    <button v-if="can('meeting.sync.manage')" @click="open('SyncRequest','/api/v1/sync-jobs','newSync',{business:true})">{{tr('newSync')}}</button>
   </div>
   <template v-if="section==='employees'">
+   <p>{{tr('membersLocal')}}</p>
+   <p>{{tr('lastAdmin')}}</p>
+   <div class="toolbar"><label>{{tr('id')}}<input v-model="localMemberId" /></label>
+    <button type="button" :disabled="busy || !localMemberId" @click="changeMember(false)">{{tr('memberDisable')}}</button>
+    <button type="button" :disabled="busy || !localMemberId" @click="changeMember(true)">{{tr('memberEnable')}}</button></div>
    <div class="toolbar"><button @click="switchTab('grants')">{{tr('grants')}}</button><button @click="switchTab('resource-acl')">{{tr('permission')}}</button><button @click="switchTab('identity-bindings')">{{tr('identities')}}</button></div>
    <div class="toolbar"><button @click="open('GrantCreate','/api/v1/admin/grants','addGrant')">{{tr('addGrant')}}</button>
     <button @click="open('ACLCreate','/api/v1/admin/resource-acl','addACL')">{{tr('addACL')}}</button>

@@ -13,7 +13,7 @@ async def client_for(rt):
 
 async def issue(rt,human,scopes,audience):
     c=await rt.admin.create_client(human,ClientCreate(name='HTTP client',allowed_scopes=scopes,owner_member_id='m1',reason='Test client'))
-    result=await rt.auth.exchange(c['id'],c['client_secret'],'backend-m1',scopes,audience)
+    result=await rt.auth.exchange(c['id'],c['client_secret'],rt.test_member_session,scopes,audience)
     return result['access_token']
 
 async def test_http_auth_validation_redacts_secret(rt,human,enterprise_app_body):
@@ -21,7 +21,7 @@ async def test_http_auth_validation_redacts_secret(rt,human,enterprise_app_body)
     async with await client_for(rt) as client:
         res=await client.get('/api/v1/meetings')
         assert res.status_code==401 and 'trace_id' in res.json()
-        res=await client.post('/api/v1/admin/applications',headers={'Authorization':'Bearer backend-m1'},json={'secret_key':'must-not-echo'})
+        res=await client.post('/api/v1/admin/applications',headers={'Authorization':'Bearer '+rt.test_member_session},json={'secret_key':'must-not-echo'})
         assert res.status_code==422 and 'must-not-echo' not in res.text
         assert res.json()['reason']=='INVALID_REQUEST'
 
@@ -55,7 +55,7 @@ async def test_mcp_protocol_handshake_list_and_wrong_audience(rt,human,enterpris
         res=await client.post('/mcp',headers=headers,json={'jsonrpc':'2.0','id':2,'method':'tools/list'})
         names={t['name'] for t in res.json()['result']['tools']};assert 'meeting_list' in names and 'meeting_create_prepare' not in names
         assert (await client.get('/api/v1/meetings',headers=headers)).status_code==401
-        assert (await client.post('/mcp',headers={'Authorization':'Bearer backend-m1'},json={})).status_code==401
+        assert (await client.post('/mcp',headers={'Authorization':'Bearer '+rt.test_member_session},json={})).status_code==401
         headers['MCP-Protocol-Version']='1900-01-01'
         assert (await client.post('/mcp',headers=headers,json={'jsonrpc':'2.0','id':3,'method':'ping'})).status_code==400
 
@@ -84,12 +84,12 @@ async def test_admin_token_cannot_confirm_and_unknown_fields_forbidden(rt,human,
         op=response.json()['data']
         denied=await client.post(f"/api/v1/portal/operations/{op['id']}/confirm",headers=headers,json={'request_hash':op['request_hash']})
         assert denied.status_code==401
-        approved=await client.post(f"/api/v1/portal/operations/{op['id']}/confirm",headers={'Authorization':'Bearer backend-m1'},json={'request_hash':op['request_hash']})
+        approved=await client.post(f"/api/v1/portal/operations/{op['id']}/confirm",headers={'Authorization':'Bearer '+rt.test_member_session},json={'request_hash':op['request_hash']})
         assert approved.status_code==200
 
 async def test_portal_bootstrap_and_no_implicit_read(rt,human,enterprise_app_body):
     async with await client_for(rt) as client:
-        headers={'Authorization':'Bearer backend-m1'}
+        headers={'Authorization':'Bearer '+rt.test_member_session}
         assert (await client.post('/api/v1/admin/bootstrap',headers=headers)).status_code==200
         home=(await client.get('/api/v1/portal/context',headers=headers)).json()['data']
         assert 'meeting.application.manage' in home['actions'] and 'meeting.content.read' not in home['actions']
@@ -108,7 +108,7 @@ async def test_http_oauth_token_grants_and_code_flow(rt,human,enterprise_app_bod
         assert res.status_code==302 and '/meeting/authorize?' in res.headers['location']
         from urllib.parse import urlsplit,parse_qs
         txn=parse_qs(urlsplit(res.headers['location']).query)['transaction_id'][0]
-        auth={'Authorization':'Bearer backend-m1'}
+        auth={'Authorization':'Bearer '+rt.test_member_session}
         approved=(await client.post('/api/v1/portal/authorization/'+txn+'/approve',headers=auth,json={})).json()['data']
         code=parse_qs(urlsplit(approved['redirect_uri']).query)['code'][0]
         data={'grant_type':'authorization_code','client_id':c['id'],'code':code,'code_verifier':'x'*64,

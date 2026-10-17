@@ -38,9 +38,11 @@ class AdminService:
     async def human(self, principal):
         if not principal.portal or principal.actor_type!='MEMBER' or not principal.member_id:
             raise MeetingError('PERMISSION_DENIED',403)
-        current=await self.rt.backend.resolve(principal.org_id,principal.member_id)
+        current=await self.rt.identity.require_member(principal.org_id,principal.member_id)
         if current.user_id!=principal.user_id or not current.is_active:
             raise MeetingError('MEMBER_INACTIVE',403)
+        if principal.session_issued_at and (utcnow()-principal.session_issued_at).total_seconds()>self.rt.settings.auth_admin_fresh_seconds:
+            raise MeetingError('ADMIN_REAUTH_REQUIRED',401)
         return current
 
     async def require(self, session, principal, action):
@@ -54,7 +56,8 @@ class AdminService:
 
     async def bootstrap(self, principal):
         member=await self.human(principal)
-        if member.member_role!='admin': raise MeetingError('PERMISSION_DENIED',403)
+        if member.member_role!='admin' or principal.user_id not in self.rt.settings.meeting_bootstrap_admin_user_ids:
+            raise MeetingError('PERMISSION_DENIED',403)
         async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
             exists=await s.scalar(select(PolicyVersion).where(PolicyVersion.org_id==principal.org_id))
             if exists: raise MeetingError('CONFLICT',409)
@@ -143,7 +146,7 @@ class AdminService:
             return safe_row(app,FIELDS['applications'][2])
 
     async def bind_identity(self,principal,body:IdentityBind):
-        await self.rt.backend.resolve(principal.org_id,body.member_id)
+        await self.rt.identity.require_member(principal.org_id,body.member_id)
         async with self.rt.db.lock('policy:'+principal.org_id), self.rt.db.transaction() as s:
             await self.require(s,principal,'meeting.application.manage')
             app=await self._get(s,Application,principal.org_id,body.application_id)
@@ -171,7 +174,7 @@ class AdminService:
         for ident in resources:
             row=await s.get(Meeting,ident) or await s.get(Asset,ident)
             if not row or row.org_id!=org or row.deleted_at is not None: raise MeetingError('RESOURCE_NOT_ACCESSIBLE',404)
-        for ident in members: await self.rt.backend.resolve(org,ident)
+        for ident in members: await self.rt.identity.require_member(org,ident)
 
     async def create_grant(self,principal,body:GrantCreate):
         if not set(body.actions)<=ALL_ACTIONS or (body.expires_at and body.expires_at<=utcnow()):
@@ -179,7 +182,7 @@ class AdminService:
         async with self.rt.db.lock('policy:'+principal.org_id),self.rt.db.transaction() as s:
             await self.require(s,principal,'meeting.acl.manage')
             await self._check_references(s,principal.org_id,body.connection_ids,body.resource_ids,body.target_member_ids)
-            if body.subject_type=='MEMBER': await self.rt.backend.resolve(principal.org_id,body.subject_id)
+            if body.subject_type=='MEMBER': await self.rt.identity.require_member(principal.org_id,body.subject_id)
             else:
                 client=await self._get(s,Client,principal.org_id,body.subject_id)
                 if not client.allow_service: raise MeetingError('PERMISSION_DENIED',403)
@@ -225,7 +228,7 @@ class AdminService:
             p=urlsplit(uri)
             if p.scheme!='https' or not p.hostname or p.username or p.password or p.fragment or '*' in uri or {'code','state'} & set(parse_qs(p.query)):
                 raise MeetingError('INVALID_REQUEST',422)
-        await self.rt.backend.resolve(principal.org_id,body.owner_member_id)
+        await self.rt.identity.require_member(principal.org_id,body.owner_member_id)
         secret=random_token('mc') if body.client_type=='CONFIDENTIAL' else None
         async with self.rt.db.lock('policy:'+principal.org_id),self.rt.db.transaction() as s:
             await self.require(s,principal,'meeting.client.manage')
@@ -275,7 +278,7 @@ class AdminService:
             connection=await self._get(s,Connection,principal.org_id,resource.connection_id)
             if connection.kind=='THIRD_PARTY_OAUTH' and (body.subject_type!='MEMBER' or body.subject_id!=connection.member_id):
                 raise MeetingError('PERMISSION_DENIED',403)
-            if body.subject_type=='MEMBER':await self.rt.backend.resolve(principal.org_id,body.subject_id)
+            if body.subject_type=='MEMBER':await self.rt.identity.require_member(principal.org_id,body.subject_id)
             else:await self._get(s,Client,principal.org_id,body.subject_id)
             row=ResourceACL(org_id=principal.org_id,issued_by=principal.member_id,**body.model_dump());s.add(row)
             await s.flush();await self.rt.policy.bump(s,principal.org_id);record(s,principal,'resource_acl.created',resource_id=row.id)
