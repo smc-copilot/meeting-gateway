@@ -28,8 +28,12 @@ async def setup(request:Request,application_id:str,p=Depends(human)):
     async with rt.db.session() as s:
         await rt.admin.require(s,p,'meeting.application.manage')
         app=await rt.admin._get(s,Application,p.org_id,application_id)
-        return envelope(request,{'webhook_url':rt.settings.public_base_url+'/callbacks/tencent/events/'+app.receiver_id,
-            'oauth_callback_url':rt.settings.public_base_url+'/callbacks/tencent/oauth/'+app.id,
+        env_alias=(app.settings_data or {}).get('owner')=='ENV' and bool(app.sdk_id)
+        oauth_ref=app.sdk_id if env_alias else app.id
+        event_ref=app.sdk_id if env_alias else app.receiver_id
+        webhook=rt.settings.public_base_url+'/callbacks/tencent/events/'+event_ref
+        return envelope(request,{'webhook_url':webhook,'webhook_callback_url':webhook,
+            'oauth_callback_url':rt.settings.public_base_url+'/callbacks/tencent/oauth/'+oauth_ref,
             'configure_egress_ip_in_tencent_console':True,'official_debug_configuration_is_manual':True,
             'webhook_verified_at':app.webhook_verified_at,'last_callback_at':app.last_callback_at})
 

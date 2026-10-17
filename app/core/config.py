@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,6 +27,19 @@ class Settings(BaseSettings):
     tencent_meeting_app_secret: SecretStr = SecretStr("")
     tencent_meeting_allowed_open_corp_ids: list[str] = Field(default_factory=list)
     tencent_meeting_oauth_return_uris: list[str] = Field(default_factory=list)
+    tencent_meeting_webhook_name: str = ""
+    tencent_meeting_webhook_encoding_aes_key: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices(
+            "TENCENT_MEETING_WEBHOOK_ENCODING_AES_KEY",
+            "TENCENT_MEETING_WEBHOOK_EncodingAESKey",
+        ),
+    )
+    tencent_meeting_webhook_token: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("TENCENT_MEETING_WEBHOOK_TOKEN", "TENCENT_MEETING_WEBHOOK_Token"),
+    )
+    tencent_meeting_webhook_url: str = ""
     nodeskclaw_backend_url: str = ""
     backend_service_token: SecretStr = SecretStr("")
     metrics_token: SecretStr = SecretStr("")
@@ -78,6 +91,41 @@ class Settings(BaseSettings):
     maintenance_interval_seconds: int = Field(3600, ge=30)
     max_http_concurrency: int = Field(100, ge=1, le=1000)
 
+    def fixed_oauth_callback_url(self) -> str:
+        if not self.tencent_meeting_app_id:
+            return ""
+        return self.public_base_url.rstrip("/") + "/callbacks/tencent/oauth/" + self.tencent_meeting_app_id
+
+    def fixed_webhook_callback_url(self) -> str:
+        if not self.tencent_meeting_app_id:
+            return ""
+        return self.public_base_url.rstrip("/") + "/callbacks/tencent/events/" + self.tencent_meeting_app_id
+
+    def tencent_webhook_complete(self) -> bool:
+        return bool(
+            self.tencent_meeting_app_id
+            and self.tencent_meeting_corp_id
+            and self.tencent_meeting_app_secret.get_secret_value()
+            and self.tencent_meeting_webhook_name
+            and self.tencent_meeting_webhook_encoding_aes_key.get_secret_value()
+            and self.tencent_meeting_webhook_token.get_secret_value()
+            and self.tencent_meeting_webhook_url
+        )
+
+    def _check_tencent_webhook(self):
+        from app.integrations.tencent_meeting.webhook import _key
+
+        if self.tencent_meeting_auth_mode != "oauth" or not self.tencent_meeting_app_id:
+            raise ValueError("VALUE_REQUIRED")
+        if not self.tencent_webhook_complete():
+            raise ValueError("VALUE_REQUIRED")
+        try:
+            _key(self.tencent_meeting_webhook_encoding_aes_key.get_secret_value())
+        except ValueError as exc:
+            raise ValueError("VALUE_REQUIRED") from exc
+        if self.tencent_meeting_webhook_url != self.fixed_webhook_callback_url():
+            raise ValueError("VALUE_REQUIRED")
+
     def _check_login_url(self):
         if not self.account_login_url:
             if self.environment == "production":
@@ -116,6 +164,7 @@ class Settings(BaseSettings):
                 self.meeting_bootstrap_admin_user_ids = ["u-m1", "u1"]
         self._check_login_url()
         if self.environment == "production":
+            self._check_tencent_webhook()
             if not self.database_url.startswith("postgresql+asyncpg://"):
                 raise ValueError("Production requires PostgreSQL asyncpg")
             if not self.keyring_json or not self.meeting_component_id or not self.meeting_org_id or not self.account_login_url:
