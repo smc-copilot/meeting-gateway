@@ -1,13 +1,13 @@
 """Downstream authorization. It does not store employee passwords or Backend JWT keys."""
 import hmac
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 from sqlalchemy import select, update, or_
 from app.core.errors import MeetingError
 from app.core.security import digest, random_token, verify_pkce
 from app.core.types import Principal, utcnow
-from app.models import Client, AccessGrant, AgentGrant, AccessToken, AuthTransaction, new_id
+from app.models import Client, AccessGrant, AgentGrant, AccessToken, AuthTransaction, LocalMember, Connection, new_id
 from app.services.permission_service import ALL_ACTIONS, live
 from app.services.audit_service import record
 
@@ -149,18 +149,67 @@ class AuthService:
                 "refresh_token": refresh_token, "scope": " ".join(effective), "resource": audience}
 
     async def exchange(self, client_id, secret, subject_token, scopes, audience):
-        self._audience(audience)
-        async with self.rt.db.transaction() as session:
-            client = await self._client(session, client_id, secret)
-            if client.agent_id:
-                raise MeetingError("PERMISSION_DENIED", 403)  # Agents use explicit consent, never an implicit service exchange.
-            if not str(subject_token).startswith("ms_"):
-                raise MeetingError("IDENTITY_REAUTH_REQUIRED", 401)
-            holder = await self.rt.identity.session_principal(subject_token)
-            if holder.org_id != client.org_id:
-                raise MeetingError("PERMISSION_DENIED", 403)
-            principal = holder.model_copy(update={"client_id": client.id, "portal": False, "audience": audience, "scopes": ALL_ACTIONS})
-            return await self._issue(session, client, principal, scopes, audience)
+        raise MeetingError("AUTH_EXCHANGE_DISABLED", 410)
+
+    async def oauth_session(self, client_id, secret, authorization_code, scopes=None):
+        audience = self.rt.settings.rest_resource_uri
+        if not authorization_code or not str(authorization_code).startswith("oc_") or len(authorization_code) > 256:
+            raise MeetingError("STATE_INVALID", 400)
+        async with self.rt.db.lock("oauth-session:" + digest(authorization_code)):
+            async with self.rt.db.transaction() as session:
+                client = await self._client(session, client_id, secret)
+                if client.agent_id:
+                    raise MeetingError("PERMISSION_DENIED", 403)
+                rows = list((await session.execute(select(AuthTransaction).where(
+                    AuthTransaction.purpose == "TENCENT_OAUTH", AuthTransaction.status == "RECEIVED",
+                    AuthTransaction.client_id == client.id, AuthTransaction.org_id == client.org_id))).scalars())
+                tx = None
+                for row in rows:
+                    payload = row.payload or {}
+                    if payload.get("authorization_code_hash") == digest(authorization_code):
+                        tx = row
+                        break
+                if tx is None:
+                    raise MeetingError("STATE_INVALID", 400)
+                payload = dict(tx.payload or {})
+                if payload.get("authorization_code_used_at"):
+                    raise MeetingError("STATE_INVALID", 400)
+                expires_raw = payload.get("authorization_code_expires_at")
+                try:
+                    expires_at = datetime.fromisoformat(expires_raw) if isinstance(expires_raw, str) else None
+                except ValueError:
+                    expires_at = None
+                if expires_at is None or expires_at <= utcnow():
+                    raise MeetingError("STATE_INVALID", 400)
+                member_id = payload.get("member_id") or tx.member_id
+                connection_id = payload.get("connection_id")
+                if not member_id or not connection_id:
+                    raise MeetingError("STATE_INVALID", 400)
+                member = await self.rt.identity.require_member(client.org_id, member_id)
+                connection = await session.get(Connection, connection_id)
+                if connection is None or connection.member_id != member_id or connection.status != "ACTIVE":
+                    raise MeetingError("UPSTREAM_REAUTH_REQUIRED", 409)
+                local = await session.get(LocalMember, member_id)
+                if local is None:
+                    raise MeetingError("LOCAL_MEMBER_NOT_ENROLLED", 409)
+                ms_token, stored = await self.rt.identity.attach_session_for_member(session, local)
+                holder = Principal(org_id=client.org_id, actor_type="MEMBER", client_id=client.id, member_id=member_id,
+                    user_id=member.user_id, scopes=ALL_ACTIONS, audience=audience, portal=False,
+                    member_role=member.member_role, identity_expires_at=stored.expires_at,
+                    identity_session_id=stored.id, identity_version=stored.identity_version,
+                    auth_mode_epoch=stored.auth_mode_epoch)
+                ceiling = await self.rt.policy.action_ceiling(session, holder)
+                desired = scopes or sorted(ceiling or {"meeting.read", "meeting.content.read"})
+                if not desired:
+                    desired = ["meeting.read", "meeting.content.read"]
+                issued = await self._issue(session, client, holder, desired, audience)
+                payload["authorization_code_used_at"] = utcnow().isoformat()
+                tx.payload = payload
+                issued["connection_id"] = connection_id
+                issued["member_id"] = member_id
+                issued["session_token"] = ms_token
+                issued["session_expires_in"] = max(1, int((stored.expires_at - utcnow()).total_seconds()))
+                return issued
 
     async def portal_exchange(self, principal):
         if not principal.portal:

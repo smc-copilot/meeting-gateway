@@ -52,11 +52,28 @@ async def runtime(tmp_path):
 
 
 async def issue(rt, scopes=None, audience=None):
-    return await rt.auth.exchange("c1", "client-secret-32-chars-long-value", rt.test_member_session,
-                                  scopes or ["meeting.read"], audience or rt.settings.rest_resource_uri)
+    audience = audience or rt.settings.rest_resource_uri
+    scopes = scopes or ["meeting.read"]
+    verifier = "x" * 50
+    request = await rt.auth.begin_authorization(client_id="c1", redirect_uri="https://agent.example.org/callback",
+        resource=audience, scope=" ".join(scopes), state="state-value",
+        code_challenge=pkce_challenge(verifier), code_challenge_method="S256", response_type="code")
+    portal = await rt.identity.session_principal(rt.test_member_session)
+    result = await rt.auth.approve_authorization(request["transaction_id"], portal)
+    from urllib.parse import urlsplit, parse_qs
+    code = parse_qs(urlsplit(result["redirect_uri"]).query)["code"][0]
+    return await rt.auth.authorization_code("c1", "client-secret-32-chars-long-value", code, verifier,
+                                            "https://agent.example.org/callback", audience)
 
 
-async def test_exchange_binds_real_member_and_audience(runtime):
+async def test_exchange_disabled(runtime):
+    with pytest.raises(MeetingError) as exc:
+        await runtime.auth.exchange("c1", "client-secret-32-chars-long-value", runtime.test_member_session,
+                                    ["meeting.read"], runtime.settings.rest_resource_uri)
+    assert exc.value.reason == "AUTH_EXCHANGE_DISABLED" and exc.value.status == 410
+
+
+async def test_token_binds_real_member_and_audience(runtime):
     token = await issue(runtime)
     p = await runtime.auth.authenticate(token["access_token"], runtime.settings.rest_resource_uri)
     assert p.member_id == "m1" and p.client_id == "c1"
@@ -65,16 +82,9 @@ async def test_exchange_binds_real_member_and_audience(runtime):
     assert exc.value.reason == "AUDIENCE_MISMATCH"
 
 
-async def test_exchange_requires_both_client_and_employee(runtime):
-    for secret, employee in [("wrong", runtime.test_member_session), ("client-secret-32-chars-long-value", "m1")]:
-        with pytest.raises(MeetingError):
-            await runtime.auth.exchange("c1", secret, employee, ["meeting.read"], runtime.settings.rest_resource_uri)
-
-
 async def test_request_cannot_expand_scope(runtime):
     with pytest.raises(MeetingError):
         await issue(runtime, ["meeting.content.download"])
-
 
 async def test_raw_upstream_or_backend_token_rejected(runtime):
     for token in [runtime.test_member_session, "tencent-token", "bad-value", "mr_refresh-token"]:

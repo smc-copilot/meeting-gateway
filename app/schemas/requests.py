@@ -115,6 +115,15 @@ class OperationReject(StrictModel):
 class OAuthStart(StrictModel):
     application_id: str = ""
     return_to: str | None = None
+    client_id: str | None = Field(None, max_length=64)
+    client_secret: str | None = Field(None, max_length=512)
+
+
+class OAuthSession(StrictModel):
+    authorization_code: str = Field(min_length=8, max_length=256)
+    client_id: str | None = Field(None, max_length=64)
+    client_secret: str | None = Field(None, max_length=512)
+    scopes: list[str] = Field(default_factory=list, max_length=30)
 
 
 class AgentGrantCreate(StrictModel):

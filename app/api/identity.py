@@ -18,9 +18,7 @@ class MemberChange(StrictModel):
 
 @router.post("/auth/account-login")
 async def account_login(request: Request, body: AccountLogin):
-    data = await runtime(request).identity.login(body.account, body.password)
-    data.pop("session_id", None)
-    return envelope(request, data)
+    raise MeetingError("ACCOUNT_LOGIN_DISABLED", 410)
 
 
 @router.get("/auth/session")

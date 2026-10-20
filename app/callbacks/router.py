@@ -56,7 +56,10 @@ async def oauth(request:Request,application_id:str,state:str=Query(min_length=1,
     value=await rt.connections.oauth_callback(app[0] if app else application_id,state,auth_code or code)
     target=value.get('return_to') or rt.settings.public_base_url+'/oauth/tencent/result'
     separator='&' if '?' in target else '?'
-    return RedirectResponse(target+separator+urlencode({'connection_id':value['connection_id']}),
+    params={'connection_id':value['connection_id'],'status':value.get('status') or ''}
+    if value.get('authorization_code'):
+        params['authorization_code']=value['authorization_code']
+    return RedirectResponse(target+separator+urlencode(params),
         status_code=303,headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer'})
 
 @router.get('/oauth/tencent/result')

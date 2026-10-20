@@ -4,8 +4,10 @@ from starlette.background import BackgroundTask
 from app.api.deps import business,runtime,envelope
 from app.core.errors import MeetingError
 from fastapi.responses import JSONResponse
-from app.schemas.requests import MeetingCreate,SyncRequest,DownloadRequest,MeetingQuery,OperationConfirm,OperationReject,OAuthStart
+from app.schemas.requests import (MeetingCreate,SyncRequest,DownloadRequest,MeetingQuery,OperationConfirm,
+                                  OperationReject,OAuthStart,OAuthSession)
 from app.services.portal_service import PortalService
+from app.authorization.router import client_auth,throttle
 
 router=APIRouter(tags=['meeting-business'])
 
@@ -41,8 +43,25 @@ async def meeting_queries(request:Request,body:MeetingQuery,p=Depends(business))
     return envelope(request,await runtime(request).queries.submit(p,body))
 
 @router.post('/oauth/authorizations',status_code=201)
-async def oauth_authorization(request:Request,body:OAuthStart,p=Depends(business)):
-    return envelope(request,await runtime(request).connections.oauth_start(p,body.application_id,body.return_to))
+async def oauth_authorization(request:Request,body:OAuthStart):
+    await throttle(request)
+    client_id,secret=client_auth(request,body.model_dump())
+    rt=runtime(request)
+    host=request.client.host if request.client else ''
+    async with rt.db.session() as session:
+        client=await rt.auth._client(session,client_id,secret)
+        client_id_value,org_id,client_type=client.id,client.org_id,client.client_type
+    from types import SimpleNamespace
+    client=SimpleNamespace(id=client_id_value,org_id=org_id,client_type=client_type,enabled=True,deleted_at=None,agent_id=None)
+    return envelope(request,await rt.connections.oauth_start_for_client(
+        client,body.application_id or '',body.return_to,client_host=host))
+
+@router.post('/oauth/sessions',status_code=201)
+async def oauth_sessions(request:Request,body:OAuthSession):
+    await throttle(request)
+    client_id,secret=client_auth(request,body.model_dump())
+    return envelope(request,await runtime(request).auth.oauth_session(
+        client_id,secret,body.authorization_code,body.scopes or None))
 
 @router.post('/connections/{connection_id}/confirm')
 async def confirm_connection(request:Request,connection_id:str,p=Depends(business)):

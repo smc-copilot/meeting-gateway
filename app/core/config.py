@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
     environment: Literal["development", "test", "production"] = "production"
     database_url: str = "postgresql+asyncpg://meeting:CHANGE_ME@postgres:5432/meeting"
-    identity_mode: Literal["account_login"] = "account_login"
+    identity_mode: Literal["account_login", "tencent_oauth"] = "tencent_oauth"
     account_login_url: str = ""
     meeting_component_id: str = ""
     meeting_org_id: str = ""
@@ -127,6 +127,10 @@ class Settings(BaseSettings):
             raise ValueError("VALUE_REQUIRED")
 
     def _check_login_url(self):
+        if self.identity_mode == "tencent_oauth":
+            if self.meeting_component_id and not re.fullmatch(r"[a-z][a-z0-9-]{2,63}", self.meeting_component_id):
+                raise ValueError("IDENTITY_CONFIG_INVALID")
+            return
         if not self.account_login_url:
             if self.environment == "production":
                 raise ValueError("IDENTITY_CONFIG_INVALID")
@@ -155,19 +159,23 @@ class Settings(BaseSettings):
             raise ValueError("LEGACY_IDENTITY_CONFIG_FORBIDDEN")
         if self.auth_admin_fresh_seconds > self.auth_session_ttl_seconds:
             raise ValueError("IDENTITY_CONFIG_INVALID")
-        if self.environment == "test" and not self.account_login_url:
-            self.account_login_url = "http://127.0.0.1:9/api/v1/auth/account-login"
-            self.account_login_allow_private_http = True
+        if self.environment == "test":
             self.meeting_component_id = self.meeting_component_id or "meeting-gateway"
             self.meeting_org_id = self.meeting_org_id or "o1"
             if not self.meeting_bootstrap_admin_user_ids:
                 self.meeting_bootstrap_admin_user_ids = ["u-m1", "u1"]
+            if self.identity_mode == "account_login" and not self.account_login_url:
+                self.account_login_url = "http://127.0.0.1:9/api/v1/auth/account-login"
+                self.account_login_allow_private_http = True
         self._check_login_url()
         if self.environment == "production":
             self._check_tencent_webhook()
             if not self.database_url.startswith("postgresql+asyncpg://"):
                 raise ValueError("Production requires PostgreSQL asyncpg")
-            if not self.keyring_json or not self.meeting_component_id or not self.meeting_org_id or not self.account_login_url:
+            required = [self.keyring_json, self.meeting_component_id, self.meeting_org_id]
+            if self.identity_mode == "account_login":
+                required.append(self.account_login_url)
+            if not all(required):
                 raise ValueError("IDENTITY_CONFIG_INVALID")
             if "CHANGE_ME" in self.database_url:
                 raise ValueError("Replace bootstrap credentials")

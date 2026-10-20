@@ -21,7 +21,7 @@ def production(**extra):
         "keyring_json": {"v1": base64.urlsafe_b64encode(b"k" * 32).decode()},
         "meeting_component_id": "meeting-gateway",
         "meeting_org_id": "org-1",
-        "account_login_url": "https://login.example/api/v1/auth/account-login",
+        "identity_mode": "tencent_oauth",
         "public_base_url": "https://copilot.example:9999",
         "portal_base_url": "https://portal.example",
         "allowed_hosts": ["copilot.example"],

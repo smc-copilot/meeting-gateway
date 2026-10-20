@@ -9,7 +9,8 @@ from app.models import (IdentityDeployment, LocalMember, LoginObservation, Ident
                         AccessGrant, Application, new_id)
 from app.services.permission_service import live
 
-ISSUER = "account-login-v1"
+ACCOUNT_LOGIN_ISSUER = "account-login-v1"
+TENCENT_OAUTH_ISSUER = "tencent-oauth-v1"
 ROLES = {"admin": "admin", "operator": "operator", "member": "member"}
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
@@ -18,6 +19,12 @@ class IdentityService:
     def __init__(self, runtime):
         self.rt = runtime
         self._attempts: dict[str, list] = {}
+
+    @property
+    def issuer(self) -> str:
+        if self.rt.settings.identity_mode == "tencent_oauth":
+            return TENCENT_OAUTH_ISSUER
+        return ACCOUNT_LOGIN_ISSUER
 
     def _limit(self, account: str):
         now = utcnow().timestamp()
@@ -30,14 +37,15 @@ class IdentityService:
 
     async def ensure_deployment(self, session):
         settings = self.rt.settings
+        issuer = self.issuer
         row = await session.scalar(select(IdentityDeployment).where(IdentityDeployment.deleted_at.is_(None)))
         digest_value = digest("|".join([settings.meeting_component_id, settings.meeting_org_id, settings.identity_mode]))
         if row is None:
             row = IdentityDeployment(component_id=settings.meeting_component_id, org_id=settings.meeting_org_id,
-                issuer_id=ISSUER, namespace_version=1, auth_mode_epoch=1, applied_config_digest=digest_value)
+                issuer_id=issuer, namespace_version=1, auth_mode_epoch=1, applied_config_digest=digest_value)
             session.add(row)
             await session.flush()
-        elif row.component_id != settings.meeting_component_id or row.org_id != settings.meeting_org_id or row.issuer_id != ISSUER:
+        elif row.component_id != settings.meeting_component_id or row.org_id != settings.meeting_org_id or row.issuer_id != issuer:
             raise MeetingError("IDENTITY_NAMESPACE_MISMATCH", 409)
         await self.reconcile_env_tencent(session, row)
         return row
@@ -147,12 +155,12 @@ class IdentityService:
             if user["current_org_id"] != deployment.org_id:
                 raise MeetingError("ACCOUNT_ORG_MISMATCH", 403)
             member = await session.scalar(select(LocalMember).where(LocalMember.component_id == deployment.component_id,
-                LocalMember.org_id == deployment.org_id, LocalMember.issuer_id == ISSUER,
+                LocalMember.org_id == deployment.org_id, LocalMember.issuer_id == ACCOUNT_LOGIN_ISSUER,
                 LocalMember.external_user_id == user["id"], LocalMember.deleted_at.is_(None)))
             if member and (member.state == "LOCAL_DISABLED" or not member.local_enabled):
                 raise MeetingError("LOCAL_MEMBER_DISABLED", 403)
             if member is None:
-                member = LocalMember(org_id=deployment.org_id, component_id=deployment.component_id, issuer_id=ISSUER,
+                member = LocalMember(org_id=deployment.org_id, component_id=deployment.component_id, issuer_id=ACCOUNT_LOGIN_ISSUER,
                     external_user_id=user["id"], source="ACCOUNT_LOGIN", local_enabled=True, state="ACTIVE",
                     identity_version=1, member_role=role, last_verified_at=now,
                     profile_json=self._profile(user, role, unrecognized))
@@ -284,6 +292,31 @@ class IdentityService:
                     .values(revoked_at=utcnow()))
         return {"revoked": True}
 
+    async def upsert_oauth_member(self, session, *, org_id: str, open_id: str, open_corp_id: str = ""):
+        deployment = await self.ensure_deployment(session)
+        if org_id != deployment.org_id:
+            raise MeetingError("ACCOUNT_ORG_MISMATCH", 403)
+        external = open_id if len(open_id) <= 64 else digest(open_id)
+        now = utcnow()
+        member = await session.scalar(select(LocalMember).where(LocalMember.component_id == deployment.component_id,
+            LocalMember.org_id == org_id, LocalMember.issuer_id == TENCENT_OAUTH_ISSUER,
+            LocalMember.external_user_id == external, LocalMember.deleted_at.is_(None)))
+        if member and (member.state == "LOCAL_DISABLED" or not member.local_enabled):
+            raise MeetingError("LOCAL_MEMBER_DISABLED", 403)
+        profile = {"name": "", "open_corp_id": (open_corp_id or "")[:128], "open_id": open_id[:128]}
+        if member is None:
+            member = LocalMember(org_id=org_id, component_id=deployment.component_id, issuer_id=TENCENT_OAUTH_ISSUER,
+                external_user_id=external, source="TENCENT_OAUTH", local_enabled=True, state="ACTIVE",
+                identity_version=1, member_role="member", last_verified_at=now, profile_json=profile)
+            session.add(member)
+            await session.flush()
+        else:
+            member.state = "ACTIVE"
+            member.last_verified_at = now
+            member.profile_json = {**(member.profile_json or {}), **profile}
+            member.identity_version += 1
+        return member
+
     async def issue_session_for_member(self, member_id: str) -> str:
         now = utcnow()
         token = random_token("ms")
@@ -305,6 +338,26 @@ class IdentityService:
                 expires_at=observation.valid_until, identity_version=member.identity_version,
                 auth_mode_epoch=deployment.auth_mode_epoch))
         return token
+
+    async def attach_session_for_member(self, session, member) -> tuple[str, IdentitySession]:
+        now = utcnow()
+        token = random_token("ms")
+        deployment = await self.ensure_deployment(session)
+        observation = LoginObservation(member_id=member.id, attempt_seq=member.last_applied_attempt_seq + 1,
+            received_at=now, normalized_role=member.member_role, observed_flags={"source": "tencent_oauth"},
+            accepted_for_session=True, source_expires_in=self.rt.settings.auth_session_ttl_seconds,
+            valid_until=now + timedelta(seconds=self.rt.settings.auth_session_ttl_seconds),
+            projection_digest=digest(member.id))
+        session.add(observation)
+        await session.flush()
+        member.last_applied_attempt_seq = observation.attempt_seq
+        stored = IdentitySession(token_hash=digest(token), member_id=member.id, observation_id=observation.id,
+            component_id=deployment.component_id, org_id=member.org_id, issued_at=now,
+            expires_at=observation.valid_until, identity_version=member.identity_version,
+            auth_mode_epoch=deployment.auth_mode_epoch)
+        session.add(stored)
+        await session.flush()
+        return token, stored
 
     async def disable(self, principal, member_id: str, reason: str):
         async with self.rt.db.transaction() as session:
@@ -349,7 +402,7 @@ class IdentityService:
                     LocalMember.external_user_id == external, LocalMember.deleted_at.is_(None)))
                 if member is None:
                     member = LocalMember(org_id=org_id, component_id=self.rt.settings.meeting_component_id,
-                        issuer_id=ISSUER, external_user_id=external, source="LEGACY_MAPPING", local_enabled=True,
+                        issuer_id=ACCOUNT_LOGIN_ISSUER, external_user_id=external, source="LEGACY_MAPPING", local_enabled=True,
                         state="LEGACY_UNVERIFIED", identity_version=1, member_role="member", profile_json={})
                     session.add(member)
                     await session.flush()

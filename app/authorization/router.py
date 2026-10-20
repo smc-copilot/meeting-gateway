@@ -114,5 +114,4 @@ async def revoke(request:Request):
 @router.post('/api/v1/auth/exchange')
 async def exchange(request:Request,body:ExchangeRequest):
     await throttle(request)
-    result=await runtime(request).auth.exchange(body.client_id,body.client_secret,body.subject_token,body.scopes,body.resource)
-    return JSONResponse(envelope(request,result),headers=NO_STORE)
+    raise MeetingError('AUTH_EXCHANGE_DISABLED',410)

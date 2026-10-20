@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, downloadAsset, errorText, hasGatewaySession, loginAccount, clearGatewaySession } from './client'
+import { api, downloadAsset, errorText, hasGatewaySession, clearGatewaySession, startAuthorize, consumeOAuthReturn } from './client'
 import { useMeetingText } from './locale'
 import type { Row, Page, JsonSchema } from './types'
 import SchemaForm from './SchemaForm.vue'
@@ -18,12 +18,10 @@ const operation=ref<Row|null>(null), subtab=ref(''), modal=ref<{name:string;path
 const diagConnection=ref(''), diagProbe=ref('configuration'), diagRecording=ref(''), probeOpen=ref(false)
 const probes=['configuration','oauth_user_info','upcoming','history','records','corp_records','record_detail','transcript','minutes']
 const reason=ref(''), reconcileId=ref('')
-const signedIn=ref(hasGatewaySession()), loginAccountValue=ref(''), loginPasswordValue=ref(''), localMemberId=ref('')
-async function submitLogin(){
- const password=loginPasswordValue.value
- loginPasswordValue.value=''
- const data=await run(()=>loginAccount(loginAccountValue.value, password), false)
- if(data){ signedIn.value=true; await refresh() }
+const signedIn=ref(hasGatewaySession()), localMemberId=ref('')
+async function beginAuthorize(){
+ const value=await run(()=>startAuthorize(''), false)
+ if(value?.authorization_url) window.location.assign(value.authorization_url)
 }
 function signOut(){ clearGatewaySession(); signedIn.value=false; context.value={actions:[],features:{}} }
 const minutesRemaining=computed(()=>{
@@ -92,7 +90,7 @@ function rotateApplication(row:Row){
  const initial:Row={};for(const key of Object.keys(schemas.ApplicationCreate.properties || {})) if(row[key]!==undefined)initial[key]=row[key]
  open('ApplicationCreate','/api/v1/admin/applications/'+row.id+'/credentials','edit',{method:'PUT',initial})
 }
-async function authorize(row:Row){const value=await run(()=>api('/api/v1/portal/applications/'+row.id+'/authorize',{method:'POST'}),false);if(value)window.location.assign(value.authorization_url)}
+async function authorize(row:Row){const value=await run(()=>startAuthorize(String(row.id||'')),false);if(value?.authorization_url)window.location.assign(value.authorization_url)}
 async function reasonAction(path:string){const why=window.prompt(tr('reason'));if(!why)return
  const data=await run(()=>api(path,{method:'POST',body:{reason:why}}));if(data)await refresh()
 }
@@ -127,18 +125,24 @@ async function changeMember(enable:boolean){
 }
 async function switchTab(value:string){subtab.value=value;cursor.value=null;await refresh()}
 watch(section,()=>{subtab.value='';cursor.value=null;rows.value=[];result.value=null;selected.value=null;content.value=null;modal.value=null;error.value='';void refresh()})
-onMounted(()=>{ if(signedIn.value) void refresh() })
+onMounted(async()=>{
+ const exchanged=await run(()=>consumeOAuthReturn(window.location.search), false)
+ if(exchanged){
+  signedIn.value=true
+  const clean=window.location.pathname+(window.location.hash||'')
+  window.history.replaceState({}, document.title, clean)
+ }
+ if(signedIn.value) void refresh()
+})
 </script>
 <template>
  <main class="meeting-console">
   <h1>{{tr('title')}}</h1>
-  <form v-if="!signedIn" class="panel" @submit.prevent="submitLogin">
+  <div v-if="!signedIn" class="panel">
    <h2>{{tr('loginTitle')}}</h2>
    <p>{{tr('loginHint')}}</p>
-   <label>{{tr('loginAccount')}}<input v-model="loginAccountValue" autocomplete="username" /></label>
-   <label>{{tr('loginPassword')}}<input v-model="loginPasswordValue" type="password" autocomplete="current-password" /></label>
-   <button type="submit" :disabled="busy">{{tr('loginSubmit')}}</button>
-  </form>
+   <button type="button" :disabled="busy" @click="beginAuthorize">{{tr('authorize')}}</button>
+  </div>
   <div v-else class="toolbar"><button type="button" @click="signOut">{{tr('close')}}</button></div>
   <nav aria-label="Meeting navigation"><RouterLink v-for="item in menu" :key="item[0]" :to="'/meeting/'+item[0]">{{tr(item[0])}}</RouterLink></nav>
   <p class="notice">{{tr('securityNote')}}</p>

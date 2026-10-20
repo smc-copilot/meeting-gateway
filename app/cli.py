@@ -19,7 +19,7 @@ def generate_env(path: Path, public_url: str, portal_url: str, login_url: str, d
     password=secrets.token_hex(24)
     values={'ENVIRONMENT':'production','POSTGRES_PASSWORD':password,
         'DATABASE_URL':f'postgresql+asyncpg://meeting:{password}@{database_host}:5432/meeting',
-        'IDENTITY_MODE':'account_login','ACCOUNT_LOGIN_URL':login_url,
+        'IDENTITY_MODE':'tencent_oauth','ACCOUNT_LOGIN_URL':login_url,
         'ACCOUNT_LOGIN_ALLOW_PRIVATE_HTTP':'false','MEETING_COMPONENT_ID':'meeting-gateway',
         'MEETING_ORG_ID':'','MEETING_BOOTSTRAP_ADMIN_USER_IDS':'[]','AUTH_SESSION_TTL_SECONDS':'900',
         'AUTH_ADMIN_FRESH_SECONDS':'300','TENCENT_MEETING_AUTH_MODE':'oauth','TENCENT_MEETING_CORP_ID':'',

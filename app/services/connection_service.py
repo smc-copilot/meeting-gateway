@@ -1,16 +1,16 @@
 """Tencent app and employee connections. No fallback to another app, operator or credential."""
 from datetime import UTC, datetime, timedelta
 import secrets
-import uuid
 from urllib.parse import urlencode
 from sqlalchemy import select
 from app.core.errors import MeetingError, UpstreamError
-from app.core.security import digest
 from app.core.types import Operator, Principal, utcnow
-from app.models import (Application, Connection, Credential, IdentityBinding, AuthTransaction, STSRequest, STSCallback)
+from app.models import (Application, Connection, Credential, IdentityBinding, AuthTransaction, STSRequest, STSCallback,
+                        AccessGrant)
 from app.services.admin_service import safe_row, FIELDS
 from app.services.audit_service import record
 from app.services.permission_service import live
+from app.core.security import digest, random_token
 
 
 class ConnectionService:
@@ -95,6 +95,24 @@ class ConnectionService:
             IdentityBinding.enabled.is_(True),IdentityBinding.deleted_at.is_(None)))
         return row.member_id if row else None
 
+    async def _resolve_oauth_app(self,s,org_id,application_id):
+        if not application_id:
+            app=await s.scalar(select(Application).where(Application.org_id==org_id,
+                Application.deleted_at.is_(None), Application.application_type=='THIRD_PARTY_OAUTH'))
+            if not app or (app.settings_data or {}).get('owner')!='ENV':
+                raise MeetingError('INVALID_REQUEST',422)
+        else:
+            app=await self.rt.admin._get(s,Application,org_id,application_id)
+        if not app.enabled or app.application_type!='THIRD_PARTY_OAUTH':
+            raise MeetingError('INVALID_REQUEST',422)
+        return app
+
+    def _authorization_payload(self,app,state):
+        public_ref=app.sdk_id if (app.settings_data or {}).get('owner')=='ENV' and app.sdk_id else app.id
+        redirect=self.rt.settings.public_base_url+'/callbacks/tencent/oauth/'+public_ref
+        query=urlencode({'corp_id':app.tencent_corp_id,'sdk_id':app.sdk_id,'redirect_uri':redirect,'state':state})
+        return {'authorization_url':'https://meeting.tencent.com/marketplace/authorize.html?'+query}
+
     async def oauth_start(self,principal,application_id,return_to=None):
         if getattr(principal,'portal',False):
             await self.rt.admin.human(principal)
@@ -103,14 +121,7 @@ class ConnectionService:
             if principal.actor_type!='MEMBER' or not principal.member_id:
                 raise MeetingError('PERMISSION_DENIED',403)
         async with self.rt.db.transaction() as s:
-            if not application_id:
-                app=await s.scalar(select(Application).where(Application.org_id==principal.org_id,
-                    Application.deleted_at.is_(None), Application.application_type=='THIRD_PARTY_OAUTH'))
-                if not app or (app.settings_data or {}).get('owner')!='ENV':
-                    raise MeetingError('INVALID_REQUEST',422)
-            else:
-                app=await self.rt.admin._get(s,Application,principal.org_id,application_id)
-            if not app.enabled or app.application_type!='THIRD_PARTY_OAUTH':raise MeetingError('INVALID_REQUEST',422)
+            app=await self._resolve_oauth_app(s,principal.org_id,application_id)
             allowed=list((app.settings_data or {}).get('oauth_return_uris') or [])
             if return_to is not None and return_to not in allowed:
                 raise MeetingError('INVALID_REQUEST',422)
@@ -118,13 +129,35 @@ class ConnectionService:
             tx=AuthTransaction(org_id=principal.org_id,purpose='TENCENT_OAUTH',secret_hash=digest(state),
                 application_id=app.id,member_id=principal.member_id,status='PENDING',
                 expires_at=utcnow()+timedelta(seconds=self.rt.settings.upstream_state_seconds),
-                payload={'user_id':principal.user_id,'return_to':return_to})
+                payload={'user_id':principal.user_id,'return_to':return_to,'bootstrap':False})
             s.add(tx);record(s,principal,'oauth.started',resource_id=app.id)
-            public_ref=app.sdk_id if (app.settings_data or {}).get('owner')=='ENV' and app.sdk_id else app.id
-            redirect=self.rt.settings.public_base_url+'/callbacks/tencent/oauth/'+public_ref
-            query=urlencode({'corp_id':app.tencent_corp_id,'sdk_id':app.sdk_id,'redirect_uri':redirect,'state':state})
-            return {'authorization_url':'https://meeting.tencent.com/marketplace/authorize.html?'+query,
-                    'transaction_id':tx.id,'expires_at':tx.expires_at}
+            result=self._authorization_payload(app,state)
+            result.update({'transaction_id':tx.id,'expires_at':tx.expires_at})
+            return result
+
+    async def oauth_start_for_client(self,client,application_id='',return_to=None,*,client_host=''):
+        if not live(client) or client.client_type!='CONFIDENTIAL':
+            raise MeetingError('TOKEN_INVALID',401)
+        await self.rt.rate.acquire('oauth-start:'+client.id+':'+(client_host or 'unknown'),0.2)
+        async with self.rt.db.transaction() as s:
+            app=await self._resolve_oauth_app(s,client.org_id,application_id)
+            allowed=list((app.settings_data or {}).get('oauth_return_uris') or [])
+            if return_to is None:
+                raise MeetingError('INVALID_REQUEST',422)
+            if return_to not in allowed:
+                raise MeetingError('INVALID_REQUEST',422)
+            state=secrets.token_hex(24)
+            tx=AuthTransaction(org_id=client.org_id,purpose='TENCENT_OAUTH',secret_hash=digest(state),
+                application_id=app.id,client_id=client.id,member_id=None,status='PENDING',
+                expires_at=utcnow()+timedelta(seconds=self.rt.settings.upstream_state_seconds),
+                payload={'return_to':return_to,'bootstrap':True,'client_id':client.id})
+            s.add(tx)
+            await s.flush()
+            principal=Principal(org_id=client.org_id,actor_type='SERVICE',client_id=client.id)
+            record(s,principal,'oauth.started',resource_id=app.id)
+            result=self._authorization_payload(app,state)
+            result.update({'transaction_id':tx.id,'expires_at':tx.expires_at})
+            return result
 
     async def oauth_callback(self,application_id,state,code):
         if not state or not state.isalnum() or len(state)>64 or not code or len(code)>2048:
@@ -136,11 +169,14 @@ class ConnectionService:
                 if not tx or tx.status!='PENDING' or tx.expires_at<=utcnow():raise MeetingError('STATE_INVALID',400)
                 app=await self.rt.admin._get(s,Application,tx.org_id,application_id)
                 if not app.enabled:raise MeetingError('UPSTREAM_REAUTH_REQUIRED',409)
-                await self.rt.identity.require_member(tx.org_id,tx.member_id)
+                bootstrap=bool((tx.payload or {}).get('bootstrap'))
+                if not bootstrap:
+                    if not tx.member_id:raise MeetingError('STATE_INVALID',400)
+                    await self.rt.identity.require_member(tx.org_id,tx.member_id)
                 _,secret=await self.rt.admin.read_secret(s,app,'OAUTH_APP')
-                # Mark consumed before network. A timeout requires starting a new authorization, not replaying a code.
                 tx.status='EXCHANGING';tx.used_at=utcnow()
-                txid,org,member=tx.id,tx.org_id,tx.member_id
+                txid,org,member,bootstrap_flag=tx.id,tx.org_id,tx.member_id,bootstrap
+                client_id=(tx.payload or {}).get('client_id') or tx.client_id
             try:
                 token=await self.rt.tencent.oauth('access_token',{'sdk_id':app.sdk_id,'secret':secret['secret'],'auth_code':code})
                 self._validate_oauth(token)
@@ -152,23 +188,73 @@ class ConnectionService:
                 tx=await s.get(AuthTransaction,txid);app=await self.rt.admin._get(s,Application,org,application_id)
                 if not app.enabled:raise MeetingError('UPSTREAM_REAUTH_REQUIRED',409)
                 external=str(token['open_id']);corp=str(token.get('open_corp_id') or '')
+                if bootstrap_flag:
+                    local=await self.rt.identity.upsert_oauth_member(s,org_id=org,open_id=external,open_corp_id=corp)
+                    member=local.id
+                    tx.member_id=member
                 existing=await s.scalar(select(Connection).where(Connection.application_id==app.id,
                     Connection.external_id==external,Connection.deleted_at.is_(None)))
-                if existing and existing.member_id!=member:
+                if existing and existing.member_id and existing.member_id!=member:
                     tx.status='IDENTITY_CONFLICT';await s.commit();raise MeetingError('IDENTITY_CONFLICT',409)
                 c=existing or Connection(org_id=org,application_id=app.id,kind='THIRD_PARTY_OAUTH',member_id=member,
                     external_id=external,external_corp_id=corp,scopes=token['scopes'])
                 if not existing:s.add(c);await s.flush()
-                c.external_corp_id=corp;c.scopes=token['scopes'];c.corporate_verified=bool(corp and corp in app.allowed_open_corp_ids)
-                c.status='PENDING_CONFIRMATION' if c.corporate_verified else 'CORP_MISMATCH'
-                c.consent_confirmed_at=None;c.capabilities={};c.source_health_at=None
+                c.member_id=member;c.external_corp_id=corp;c.scopes=token['scopes']
+                c.corporate_verified=bool(corp and corp in app.allowed_open_corp_ids)
+                c.capabilities={};c.source_health_at=None
+                auth_code=None
+                if bootstrap_flag and c.corporate_verified:
+                    c.status='ACTIVE';c.consent_confirmed_at=utcnow()
+                    binding=await s.scalar(select(IdentityBinding).where(IdentityBinding.application_id==app.id,
+                        IdentityBinding.identity_type=='openid',IdentityBinding.member_id==member,
+                        IdentityBinding.deleted_at.is_(None)))
+                    if binding and binding.external_id!=external:
+                        tx.status='IDENTITY_CONFLICT';await s.commit();raise MeetingError('IDENTITY_CONFLICT',409)
+                    if binding is None:
+                        s.add(IdentityBinding(org_id=org,application_id=app.id,member_id=member,identity_type='openid',
+                            external_id=external,external_corp_id=corp,
+                            verification_source='Tencent OAuth bootstrap',verified_by=member,verified_at=utcnow(),enabled=True))
+                    else:
+                        binding.enabled=True;binding.verified_at=utcnow();binding.external_corp_id=corp
+                    await self._ensure_oauth_grant(s,org,member,c.id)
+                    auth_code=random_token('oc')
+                    code_expires=utcnow()+timedelta(seconds=self.rt.settings.auth_code_seconds)
+                elif bootstrap_flag:
+                    c.status='CORP_MISMATCH';c.consent_confirmed_at=None
+                else:
+                    c.status='PENDING_CONFIRMATION' if c.corporate_verified else 'CORP_MISMATCH'
+                    c.consent_confirmed_at=None
                 await self.rt.admin.save_secret(s,app,'OAUTH_TOKEN',token,connection_id=c.id,
                     expires_at=datetime.fromtimestamp(int(token['expires']),UTC))
-                tx.status='RECEIVED';tx.payload={**(tx.payload or {}),'connection_id':c.id}
+                payload={**(tx.payload or {}),'connection_id':c.id,'member_id':member}
+                if auth_code:
+                    payload.update({'authorization_code_hash':digest(auth_code),'authorization_code_expires_at':code_expires.isoformat(),
+                                   'authorization_code_used_at':None,'client_id':client_id})
+                tx.status='RECEIVED';tx.payload=payload
                 await self.rt.policy.bump(s,org)
                 stored=dict(tx.payload or {})
-                return {'connection_id':c.id,'status':c.status,'return_to':stored.get('return_to'),
+                result={'connection_id':c.id,'status':c.status,'return_to':stored.get('return_to'),
                     'confirmation_url':self.rt.settings.portal_base_url+'/meeting/connections?connection_id='+c.id}
+                if auth_code:
+                    result['authorization_code']=auth_code
+                return result
+
+    async def _ensure_oauth_grant(self,s,org_id,member_id,connection_id):
+        existing=await s.scalar(select(AccessGrant).where(AccessGrant.org_id==org_id,AccessGrant.subject_type=='MEMBER',
+            AccessGrant.subject_id==member_id,AccessGrant.purpose=='ACCESS',AccessGrant.deleted_at.is_(None),
+            AccessGrant.effect=='ALLOW'))
+        actions=['meeting.read','meeting.content.read']
+        if existing:
+            if connection_id not in (existing.connection_ids or []):
+                existing.connection_ids=list(set((existing.connection_ids or [])+[connection_id]))
+            merged=sorted(set(existing.actions or [])|set(actions))
+            existing.actions=merged
+            return existing
+        grant=AccessGrant(org_id=org_id,subject_type='MEMBER',subject_id=member_id,actions=actions,
+            scope_type='SELF_CREATED',connection_ids=[connection_id],effect='ALLOW',purpose='ACCESS',
+            issued_by=member_id,reason='Tencent OAuth bootstrap grant')
+        s.add(grant)
+        return grant
 
     def _validate_oauth(self,token):
         try:

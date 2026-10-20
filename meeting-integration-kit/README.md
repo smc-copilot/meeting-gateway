@@ -1,12 +1,16 @@
 # 腾讯会议网关联调操作包
 
-适用代码：`smc-copilot/meeting-gateway@79e22d08b623a4f7816db05af631a463fe14348b`。
+适用代码：`smc-copilot/meeting-gateway`（以当前仓库提交为准）。
 
-执行顺序见《部署与生态联调操作手册.md》。本包是仓库外的操作工具，不修改网关服务源码，不包含任何真实凭证。
+**内部系统业务对接请优先阅读《内部系统对接联调说明.md》。**  
+主链路为：内部 client 起腾讯会议授权 → 扫码回调 → `/oauth/sessions` 换 `mt_` → 取会议数据。  
+`POST /api/v1/auth/account-login` 与 `POST /api/v1/auth/exchange` 已停用（410）。《部署与生态联调操作手册.md》中仍写这两步的段落已过时。
+
+执行顺序见《部署与生态联调操作手册.md》（部署/基础设施）与《内部系统对接联调说明.md》（业务对接）。本包是仓库外的操作工具，不修改网关服务源码，不包含任何真实凭证。
 
 - `tools/call.py`：按接口合同发送请求、保存私有原始响应、输出脱敏回执。
 - `tools/poll.py`：轮询既有作业或操作，不重复提交。
-- `tools/store.py`、`tools/exchange_form.py`：保存凭证和生成令牌交换请求。
+- `tools/store.py`、`tools/exchange_form.py`：保存凭证；`exchange_form.py` 仅适用于已退役的 exchange，新联调请用 `/oauth/sessions`。
 - `tools/read_content.py`：轮询生成状态，遍历转写分页并核对版本。
 - `tools/download.py`：读取网关下载许可，流式保存文件。
 - `tools/event_receiver.py`：内部系统签名事件接收样例，只监听回环地址。

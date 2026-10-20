@@ -35,6 +35,7 @@ def settings(tmp_path):
         storage_path=tmp_path/"private", public_base_url="https://meeting.example.org",
         portal_base_url="https://portal.example.org", meeting_org_id=ORG,
         meeting_component_id="meeting-gateway", meeting_bootstrap_admin_user_ids=[USER],
+        identity_mode="account_login",
         account_login_url="http://127.0.0.1:9/api/v1/auth/account-login",
         account_login_allow_private_http=True)
 
