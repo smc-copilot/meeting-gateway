@@ -3,6 +3,7 @@ from datetime import timedelta
 from sqlalchemy import select
 from app.core.errors import MeetingError, UpstreamError
 from app.core.types import Principal, utcnow
+from app.integrations.tencent_meeting.mapper import milliseconds, seconds
 from app.models import SyncJob
 from app.schemas.requests import MeetingQuery
 from app.services.audit_service import record
@@ -34,12 +35,26 @@ class QueryService:
                 raise MeetingError('INVALID_REQUEST', 422)
         else:
             raise MeetingError('INVALID_REQUEST', 422)
-        async with self.rt.db.transaction() as s:
+        async with self.rt.db.session() as s:
             await self.rt.policy.require(s, p, 'meeting.read', connection_id=c.id)
-            payload = body.model_dump(mode='json')
-            job = await self.rt.jobs.enqueue(s, 'SOURCE_QUERY', p, payload, connection_id=c.id)
-            record(s, p, 'meeting.query.accepted', resource_id=job.id)
-            return {'accepted': True, 'job_id': job.id, 'selection': body.selection}
+        if body.selection == 'RECORDINGS':
+            async with self.rt.db.transaction() as s:
+                payload = body.model_dump(mode='json')
+                job = await self.rt.jobs.enqueue(s, 'SOURCE_QUERY', p, payload, connection_id=c.id)
+                record(s, p, 'meeting.query.accepted', resource_id=job.id)
+                return {'accepted': True, 'job_id': job.id, 'selection': body.selection}
+        operator = await self.rt.connections.operator(c, member_id=p.member_id)
+        if body.selection == 'USER_WINDOW':
+            items = []
+            for raw in await self._scan_history(c, operator, body):
+                item = self._project(c, raw, history=True)
+                if item:
+                    items.append(item)
+        else:
+            items = [await self._fetch_meeting(c, operator, body.meeting_id)]
+        async with self.rt.db.transaction() as s:
+            record(s, p, 'meeting.query.listed', resource_id=c.id)
+        return {'selection': body.selection, 'items': items, 'meeting_count': len(items)}
 
     async def run(self, job, lease_token):
         body = MeetingQuery.model_validate(job.payload)
@@ -61,22 +76,8 @@ class QueryService:
         if body.selection == 'RECORDINGS':
             await self._recordings(job, lease_token, p, c, operator, body)
             return
-        try:
-            raw = await self.rt.tencent.call(c.id, 'meeting', operator, file_id=body.meeting_id,
-                                             heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token))
-        except MeetingError as exc:
-            if exc.reason == 'RESOURCE_NOT_ACCESSIBLE':
-                raise
-            raise MeetingError('RESOURCE_NOT_ACCESSIBLE', 404) from exc
-        item = None
-        if isinstance(raw, dict):
-            listed = raw.get('meeting_info_list')
-            if isinstance(listed, list) and listed and isinstance(listed[0], dict):
-                item = listed[0]
-            elif raw.get('meeting_id'):
-                item = raw
-        if not item or str(item.get('meeting_id')) != str(body.meeting_id):
-            raise MeetingError('RESOURCE_NOT_ACCESSIBLE', 404)
+        item = await self._fetch_meeting(c, operator, body.meeting_id,
+                                         heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token), raw=True)
         async with self.rt.db.transaction() as s:
             await self.rt.meetings.upsert(s, c, item, purpose='SOURCE_QUERY', owner_member_id=p.member_id)
 
@@ -126,42 +127,81 @@ class QueryService:
             current = await self.rt.jobs.fence(s, job_id, lease_token)
             current.progress = {**(current.progress or {}), **progress}
 
-    async def _history(self, job, lease_token, principal, connection, operator, body):
+    def _project(self, connection, raw, *, history=False):
+        if not isinstance(raw, dict) or not raw.get('meeting_id') or not isinstance(raw.get('subject', ''), str):
+            return None
+        return {
+            'meeting_id': str(raw['meeting_id']),
+            'subject': raw.get('subject', '')[:512],
+            'meeting_code': str(raw.get('meeting_code') or '') or None,
+            'start_at': seconds(raw.get('start_time')) or milliseconds(raw.get('media_start_time')),
+            'end_at': seconds(raw.get('end_time')),
+            'state': 'ENDED' if history else str(raw.get('status') or 'UNKNOWN')[:32],
+            'connection_ref': connection.id,
+        }
+
+    async def _fetch_meeting(self, connection, operator, meeting_id, *, heartbeat=None, raw=False):
+        try:
+            payload = await self.rt.tencent.call(connection.id, 'meeting', operator, file_id=meeting_id, heartbeat=heartbeat)
+        except MeetingError as exc:
+            if exc.reason == 'RESOURCE_NOT_ACCESSIBLE':
+                raise
+            raise MeetingError('RESOURCE_NOT_ACCESSIBLE', 404) from exc
+        item = None
+        if isinstance(payload, dict):
+            listed = payload.get('meeting_info_list')
+            if isinstance(listed, list) and listed and isinstance(listed[0], dict):
+                item = listed[0]
+            elif payload.get('meeting_id'):
+                item = payload
+        if not item or str(item.get('meeting_id')) != str(meeting_id):
+            raise MeetingError('RESOURCE_NOT_ACCESSIBLE', 404)
+        if raw:
+            return item
+        projected = self._project(connection, item)
+        if projected is None:
+            raise MeetingError('RESOURCE_NOT_ACCESSIBLE', 404)
+        return projected
+
+    async def _scan_history(self, connection, operator, body, heartbeat=None):
         seen = set()
-        pages = 0
+        found = []
         intervals = list(windows(body.start_at, body.end_at, 90))
-        for index, (begin, stop) in enumerate(intervals):
+        for begin, stop in intervals:
             page = 1
             while page <= 100000:
-                raw = await self.rt.tencent.call(connection.id, 'history', operator, query={
-                    'start_time': begin, 'end_time': stop, 'page': page, 'page_size': 20},
-                    heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token))
-                items = raw.get('meeting_info_list') if isinstance(raw, dict) else None
-                total = raw.get('total_page') if isinstance(raw, dict) else None
+                payload = await self.rt.tencent.call(connection.id, 'history', operator, query={
+                    'start_time': begin, 'end_time': stop, 'page': page, 'page_size': 20}, heartbeat=heartbeat)
+                items = payload.get('meeting_info_list') if isinstance(payload, dict) else None
+                total = payload.get('total_page') if isinstance(payload, dict) else None
                 if not isinstance(items, list) or not isinstance(total, int):
                     raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
                 if not items and page < total:
                     raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
-                async with self.rt.db.transaction() as s:
-                    await self.rt.jobs.fence(s, job.id, lease_token)
-                    for item in items:
-                        if not isinstance(item, dict) or not item.get('meeting_id'):
-                            continue
-                        ident = str(item['meeting_id'])
-                        if ident in seen:
-                            continue
-                        seen.add(ident)
-                        await self.rt.meetings.upsert(s, connection, item, purpose='MEMBER_HISTORY',
-                                                      owner_member_id=principal.member_id, history=True)
-                pages += 1
-                await self._remember(job.id, lease_token, {'window_index': index, 'page': page, 'pages': pages,
-                                                            'meeting_count': len(seen), 'complete': False})
+                for item in items:
+                    if not isinstance(item, dict) or not item.get('meeting_id'):
+                        continue
+                    ident = str(item['meeting_id'])
+                    if ident in seen:
+                        continue
+                    seen.add(ident)
+                    found.append(item)
                 if page >= total or total == 0:
                     break
                 page += 1
             else:
                 raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
-        await self._remember(job.id, lease_token, {'complete': True, 'pages': pages, 'meeting_count': len(seen)})
+        return found
+
+    async def _history(self, job, lease_token, principal, connection, operator, body):
+        found = await self._scan_history(connection, operator, body,
+                                         heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token))
+        async with self.rt.db.transaction() as s:
+            await self.rt.jobs.fence(s, job.id, lease_token)
+            for item in found:
+                await self.rt.meetings.upsert(s, connection, item, purpose='MEMBER_HISTORY',
+                                              owner_member_id=principal.member_id, history=True)
+        await self._remember(job.id, lease_token, {'complete': True, 'pages': 1, 'meeting_count': len(found)})
 
     async def _recordings(self, job, lease_token, principal, connection, operator, body):
         start = int(body.start_at.timestamp()) if body.start_at else int((utcnow() - timedelta(days=1)).timestamp())

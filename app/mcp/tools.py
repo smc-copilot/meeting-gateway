@@ -37,7 +37,7 @@ TOOL_DEFINITIONS={
     'meeting_download_request':(Download,{'meeting.content.download'},'申请绑定当前主体的原生资料下载许可；下载仍须同一主体认证。',False),
     'meeting_create_prepare':(Create,{'meeting.create.self'},'准备会议创建。可信员工客户端直接入队；其他客户端进入人工确认，确认由原业务系统的员工完成，智能体不能确认。',False),
     'meeting_operation_status':(Status,{'meeting.create.self','meeting.read'},'查看当前调用方自己的创建操作或查询作业。',True),
-    'meeting_source_query':(SourceQuery,{'meeting.read'},'按会议 ID 或当前员工自己的时间窗向腾讯查询。不能查询其他员工，也不能改用企业密钥。',False),
+    'meeting_source_query':(SourceQuery,{'meeting.read'},'按会议 ID 或当前员工自己的时间窗同步向腾讯查询会议列表。不能查询其他员工；USER_WINDOW/MEETING_ID 直接返回 items，不创建导入作业。',False),
 }
 
 class ToolService:

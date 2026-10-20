@@ -67,15 +67,15 @@ async def test_meeting_id_miss_does_not_store_subject(rt, human, enterprise_app_
     await member_oauth(rt, c)
     async with rt.db.session() as s:
         before = await s.scalar(select(func.count()).select_from(Meeting))
-    submitted = await rt.queries.submit(p, MeetingQuery(selection="MEETING_ID", connection_ref=c["id"], meeting_id="missing-9"))
-    job = await rt.jobs.claim("query-worker")
-    assert job.id == submitted["job_id"]
+        jobs_before = await s.scalar(select(func.count()).select_from(SyncJob))
     with pytest.raises(MeetingError, match="RESOURCE_NOT_ACCESSIBLE"):
-        await rt.queries.run(job, job.lease_token)
+        await rt.queries.submit(p, MeetingQuery(selection="MEETING_ID", connection_ref=c["id"], meeting_id="missing-9"))
     async with rt.db.session() as s:
         after = await s.scalar(select(func.count()).select_from(Meeting))
         leaked = await s.scalar(select(Meeting).where(Meeting.subject == "missing-9"))
-    assert after == before and leaked is None
+        jobs_after = await s.scalar(select(func.count()).select_from(SyncJob))
+    assert after == before and leaked is None and jobs_after == jobs_before
+    assert any(item[1] == "meeting" for item in rt.tencent.calls)
 
 
 async def test_stale_detail_defaults_to_ensure(rt, human, enterprise_app_body):
@@ -125,15 +125,18 @@ async def test_user_window_reads_every_page_once(rt, human, enterprise_app_body)
     start = utcnow() - timedelta(hours=2)
     body = MeetingQuery(selection="USER_WINDOW", connection_ref=c["id"], target_member_id="m1", start_at=start, end_at=start + timedelta(hours=1))
     submitted = await rt.queries.submit(p, body)
-    job = await rt.jobs.claim("history-worker")
-    assert job.id == submitted["job_id"]
-    await rt.queries.run(job, job.lease_token)
     pages = [item[3]["query"]["page"] for item in rt.tencent.calls if item[1] == "history"]
     assert pages == [1, 2, 3]
+    assert submitted["selection"] == "USER_WINDOW"
+    assert submitted["meeting_count"] == 41
+    assert [item["meeting_id"] for item in submitted["items"]] == [f"hist-{index}" for index in range(41)]
+    assert submitted["items"][0]["subject"] == "Listed"
+    assert submitted["items"][0]["state"] == "ENDED"
+    assert submitted["items"][0]["connection_ref"] == c["id"]
+    assert await rt.jobs.claim("history-worker") is None
     async with rt.db.session() as s:
         stored = await s.scalar(select(func.count()).select_from(Meeting).where(Meeting.external_id.like("hist-%")))
-        finished = await s.get(SyncJob, job.id)
-    assert stored == 41 and finished.progress["complete"] is True and finished.progress["meeting_count"] == 41
+    assert stored == 0
 
 
 async def test_recording_ensure_checks_upstream_even_when_empty(rt, human, enterprise_app_body):

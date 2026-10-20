@@ -38,9 +38,9 @@ async def meeting(request:Request,meeting_id:str,fetch:str=Query('ensure'),p=Dep
 async def create(request:Request,body:MeetingCreate,idempotency_key:str=Header(alias='Idempotency-Key',min_length=1,max_length=128),p=Depends(business)):
     return envelope(request,await runtime(request).operations.prepare(p,body,idempotency_key))
 
-@router.post('/meeting-queries',status_code=202)
+@router.post('/meeting-queries')
 async def meeting_queries(request:Request,body:MeetingQuery,p=Depends(business)):
-    return envelope(request,await runtime(request).queries.submit(p,body))
+    return maybe_accepted(request,await runtime(request).queries.submit(p,body))
 
 @router.get('/oauth/authorizations')
 async def oauth_authorization(request:Request,continue_to:str|None=Query(None,max_length=2048),
