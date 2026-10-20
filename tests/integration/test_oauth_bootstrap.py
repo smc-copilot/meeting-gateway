@@ -13,7 +13,7 @@ from app.core.errors import MeetingError
 from app.core.security import digest
 from app.core.types import utcnow
 from app.main import create_app
-from app.models import AccessGrant, Application, Connection, LocalMember
+from app.models import AccessGrant, Application, Connection, IdentityBinding, LocalMember
 from app.runtime import Runtime
 
 SDK = "33510141629"
@@ -143,6 +143,48 @@ async def test_public_oauth_bootstrap_gateway_complete_issues_mt(bootstrap_rt):
     with pytest.raises(MeetingError) as exc:
         await bootstrap_rt.auth.oauth_session_gateway(callback["authorization_code"])
     assert exc.value.reason == "STATE_INVALID"
+
+
+async def test_bootstrap_takes_over_open_id_owned_by_legacy_member(bootstrap_rt):
+    async with bootstrap_rt.db.transaction() as session:
+        app = await session.scalar(select(Application).where(Application.sdk_id == SDK))
+        session.add(LocalMember(
+            id="legacy-owner", org_id="o1", component_id="meeting-gateway",
+            issuer_id="account-login-v1", external_user_id="legacy-account",
+            source="ACCOUNT_LOGIN", local_enabled=True, state="ACTIVE",
+        ))
+        session.add(Connection(
+            id="conn-legacy", org_id="o1", application_id=app.id, kind="THIRD_PARTY_OAUTH",
+            member_id="legacy-owner", external_id="open-boot-1", external_corp_id="open-corp",
+            status="ACTIVE", corporate_verified=True, scopes=["VIEW_USER_INFO"],
+        ))
+        session.add(IdentityBinding(
+            org_id="o1", application_id=app.id, member_id="legacy-owner", identity_type="openid",
+            external_id="open-boot-1", external_corp_id="open-corp",
+            verification_source="legacy", verified_by="legacy-owner", verified_at=utcnow(), enabled=True,
+        ))
+
+    started = await bootstrap_rt.connections.oauth_start_public("", CONTINUE_TO, client_host="127.0.0.1")
+    query = parse_qs(urlsplit(started["authorization_url"]).query)
+    async with bootstrap_rt.db.session() as session:
+        app = await session.scalar(select(Application).where(Application.sdk_id == SDK))
+        app_id = app.id
+    callback = await bootstrap_rt.connections.oauth_callback(app_id, query["state"][0], "auth-code-once")
+    assert callback["status"] == "ACTIVE"
+    assert callback["connection_id"] == "conn-legacy"
+    assert callback["authorization_code"].startswith("oc_")
+
+    async with bootstrap_rt.db.session() as session:
+        conn = await session.get(Connection, "conn-legacy")
+        oauth_member = await session.get(LocalMember, conn.member_id)
+        bindings = list((await session.execute(select(IdentityBinding).where(
+            IdentityBinding.application_id == app_id))).scalars())
+    assert conn.member_id != "legacy-owner"
+    assert oauth_member.source == "TENCENT_OAUTH"
+    live = [row for row in bindings if row.deleted_at is None]
+    gone = [row for row in bindings if row.deleted_at is not None]
+    assert len(live) == 1 and live[0].member_id == conn.member_id and live[0].external_id == "open-boot-1"
+    assert gone and gone[0].member_id == "legacy-owner"
 
 
 async def test_oauth_start_rejects_invalid_continue_to(bootstrap_rt):

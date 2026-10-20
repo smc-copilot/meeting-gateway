@@ -222,7 +222,7 @@ class ConnectionService:
                     tx.member_id=member
                 existing=await s.scalar(select(Connection).where(Connection.application_id==app.id,
                     Connection.external_id==external,Connection.deleted_at.is_(None)))
-                if existing and existing.member_id and existing.member_id!=member:
+                if existing and existing.member_id and existing.member_id!=member and not bootstrap_flag:
                     tx.status='IDENTITY_CONFLICT';await s.commit();raise MeetingError('IDENTITY_CONFLICT',409)
                 c=existing or Connection(org_id=org,application_id=app.id,kind='THIRD_PARTY_OAUTH',member_id=member,
                     external_id=external,external_corp_id=corp,scopes=token['scopes'])
@@ -233,17 +233,7 @@ class ConnectionService:
                 auth_code=None
                 if bootstrap_flag and c.corporate_verified:
                     c.status='ACTIVE';c.consent_confirmed_at=utcnow()
-                    binding=await s.scalar(select(IdentityBinding).where(IdentityBinding.application_id==app.id,
-                        IdentityBinding.identity_type=='openid',IdentityBinding.member_id==member,
-                        IdentityBinding.deleted_at.is_(None)))
-                    if binding and binding.external_id!=external:
-                        tx.status='IDENTITY_CONFLICT';await s.commit();raise MeetingError('IDENTITY_CONFLICT',409)
-                    if binding is None:
-                        s.add(IdentityBinding(org_id=org,application_id=app.id,member_id=member,identity_type='openid',
-                            external_id=external,external_corp_id=corp,
-                            verification_source='Tencent OAuth bootstrap',verified_by=member,verified_at=utcnow(),enabled=True))
-                    else:
-                        binding.enabled=True;binding.verified_at=utcnow();binding.external_corp_id=corp
+                    await self._claim_openid_binding(s,org,app,member,external,corp)
                     await self._ensure_oauth_grant(s,org,member,c.id)
                     auth_code=random_token('oc')
                     code_expires=utcnow()+timedelta(seconds=self.rt.settings.auth_code_seconds)
@@ -269,6 +259,26 @@ class ConnectionService:
                 if auth_code:
                     result['authorization_code']=auth_code
                 return result
+
+    async def _claim_openid_binding(self,s,org,app,member_id,external,corp):
+        rows=list((await s.execute(select(IdentityBinding).where(
+            IdentityBinding.application_id==app.id,IdentityBinding.identity_type=='openid',
+            IdentityBinding.deleted_at.is_(None)))).scalars())
+        kept=None
+        for row in rows:
+            same_member=row.member_id==member_id
+            same_external=row.external_id==external
+            if same_member and same_external:
+                kept=row
+                continue
+            if same_member or same_external:
+                row.soft_delete()
+        if kept is None:
+            s.add(IdentityBinding(org_id=org,application_id=app.id,member_id=member_id,identity_type='openid',
+                external_id=external,external_corp_id=corp,
+                verification_source='Tencent OAuth bootstrap',verified_by=member_id,verified_at=utcnow(),enabled=True))
+            return
+        kept.enabled=True;kept.verified_at=utcnow();kept.external_corp_id=corp
 
     async def _ensure_oauth_grant(self,s,org_id,member_id,connection_id):
         existing=await s.scalar(select(AccessGrant).where(AccessGrant.org_id==org_id,AccessGrant.subject_type=='MEMBER',
