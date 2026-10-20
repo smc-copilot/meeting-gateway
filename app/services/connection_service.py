@@ -142,6 +142,9 @@ class ConnectionService:
         parsed=urlsplit(value)
         if parsed.scheme not in {'https','http'} or not parsed.netloc or parsed.username:
             return False
+        host=(parsed.hostname or '').lower()
+        if host in {'localhost','127.0.0.1','::1'}:
+            return True
         if self.rt.settings.environment=='production' and parsed.scheme!='https':
             return False
         return True

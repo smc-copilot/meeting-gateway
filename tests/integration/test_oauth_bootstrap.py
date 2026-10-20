@@ -187,6 +187,22 @@ async def test_bootstrap_takes_over_open_id_owned_by_legacy_member(bootstrap_rt)
     assert gone and gone[0].member_id == "legacy-owner"
 
 
+async def test_continue_to_allows_http_localhost_in_production(bootstrap_rt):
+    original = bootstrap_rt.settings.environment
+    bootstrap_rt.settings.environment = "production"
+    try:
+        assert bootstrap_rt.connections._valid_continue_to("http://localhost")
+        assert bootstrap_rt.connections._valid_continue_to("http://localhost:5173/meeting/done")
+        assert bootstrap_rt.connections._valid_continue_to("http://127.0.0.1")
+        assert bootstrap_rt.connections._valid_continue_to("http://127.0.0.1:3000/")
+        assert not bootstrap_rt.connections._valid_continue_to("http://evil.example.org/cb")
+        started = await bootstrap_rt.connections.oauth_start_public(
+            "", "http://localhost:5173/callback", client_host="127.0.0.1")
+        assert started["authorization_url"].startswith("https://meeting.tencent.com/")
+    finally:
+        bootstrap_rt.settings.environment = original
+
+
 async def test_oauth_start_rejects_invalid_continue_to(bootstrap_rt):
     with pytest.raises(MeetingError) as exc:
         await bootstrap_rt.connections.oauth_start_public(
