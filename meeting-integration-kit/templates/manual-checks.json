@@ -1,0 +1,14 @@
+{
+  "source_commit": "79e22d08b623a4f7816db05af631a463fe14348b",
+  "operator": "",
+  "server": "",
+  "internal_system": "",
+  "checks": {
+    "DEPLOY": {"status":"NOT_RUN","observation":"核对代码SHA、实际镜像ID、API与Worker出口IP、域名证书、身份服务连接。","evidence_files":[]},
+    "SAMPLE-MATCH": {"status":"NOT_RUN","observation":"逐通道核对腾讯样本会议ID、会议号、时间、对应网关会议ID和录制ID；不以空列表为成功。","evidence_files":[]},
+    "DOWNLOAD": {"status":"NOT_RUN","observation":"实际下载字节、文件类型/可播放性、Range响应及权限复核。","evidence_files":[]},
+    "CREATE-MATCH": {"status":"NOT_RUN","observation":"腾讯客户端核对主题、时间、创建者和会议号，记录一次性幂等键。","evidence_files":[]},
+    "EVENT": {"status":"NOT_RUN","observation":"真实腾讯事件→网关内容可读→内部签名通知；校验事件资源ID对应本次样本。","evidence_files":[]},
+    "MCP": {"status":"NOT_RUN","observation":"真实客户端握手、工具调用和受众隔离。未测试时不修改状态。","evidence_files":[]}
+  }
+}

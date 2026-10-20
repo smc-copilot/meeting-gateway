@@ -1,0 +1,75 @@
+{
+  "note": "Offline synthetic cases, not live Tencent calls",
+  "error_classification": [
+    {
+      "upstream_code": 190303,
+      "reason": "UPSTREAM_UNAVAILABLE",
+      "retry_after": null,
+      "public_response_includes_upstream_code": false
+    },
+    {
+      "upstream_code": 190325,
+      "reason": "UPSTREAM_UNAVAILABLE",
+      "retry_after": null,
+      "public_response_includes_upstream_code": false
+    },
+    {
+      "upstream_code": 190300,
+      "reason": "UPSTREAM_UNAVAILABLE",
+      "retry_after": null,
+      "public_response_includes_upstream_code": false
+    },
+    {
+      "upstream_code": 190311,
+      "reason": "UPSTREAM_UNAVAILABLE",
+      "retry_after": null,
+      "public_response_includes_upstream_code": false
+    },
+    {
+      "upstream_code": 190312,
+      "reason": "RATE_LIMITED",
+      "retry_after": 60,
+      "public_response_includes_upstream_code": false
+    },
+    {
+      "upstream_code": 30003,
+      "reason": "UPSTREAM_UNAVAILABLE",
+      "retry_after": null,
+      "public_response_includes_upstream_code": false
+    },
+    {
+      "upstream_code": 30002,
+      "reason": "UPSTREAM_UNAVAILABLE",
+      "retry_after": null,
+      "public_response_includes_upstream_code": false
+    }
+  ],
+  "pagination": {
+    "default_interval": 0.2,
+    "attempts": [
+      {
+        "reason": "RATE_LIMITED",
+        "retry_after": 1
+      },
+      {
+        "reason": "RATE_LIMITED",
+        "retry_after": 1
+      },
+      {
+        "reason": "RATE_LIMITED",
+        "retry_after": 1
+      }
+    ],
+    "wire_page_cursors": [
+      "0",
+      "0",
+      "0"
+    ],
+    "published_asset_count": 0
+  },
+  "oauth_refresh": {
+    "injected_fault": "UPSTREAM_UNAVAILABLE during refresh",
+    "returned_reason": "UPSTREAM_REAUTH_REQUIRED",
+    "persisted_connection_status": "REAUTH_REQUIRED"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "artifact": "meeting-gateway-账号登录与ENV配置-OAuth会议数据提取-解决方案PRD-v1.1.md",
+  "status": "PASS",
+  "scope": "文档结构与引用校验，非产品代码测试或真实联调",
+  "source_commit": "79e22d08b623a4f7816db05af631a463fe14348b",
+  "chapters": 37,
+  "requirements": 22,
+  "acceptances": 46,
+  "negative_acceptances": 22,
+  "live_acceptances": 2,
+  "json_blocks": 50,
+  "jwt_matches": 0,
+  "sha256": "ca7355f7ce3f1f3b6514bf22456f5e393d9e0554fd8df68f41d47ba0af826a89",
+  "errors": []
+}

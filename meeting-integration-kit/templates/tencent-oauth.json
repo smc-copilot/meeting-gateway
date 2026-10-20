@@ -1,0 +1,13 @@
+{
+  "name": "腾讯会议OAuth-联调",
+  "application_type": "THIRD_PARTY_OAUTH",
+  "environment": "test",
+  "tencent_corp_id": "填写OAuth应用所属腾讯企业ID",
+  "sdk_id": "填写OAuth应用ID",
+  "data_scope": "user",
+  "oauth_secret": "填写OAuth客户密钥",
+  "webhook_token": "填写此应用事件订阅Token",
+  "webhook_encoding_key": "填写此应用43位EncodingAESKey",
+  "allowed_open_corp_ids": [],
+  "reason": "在指定白名单出口验证员工授权与会议结果读取"
+}

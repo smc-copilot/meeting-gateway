@@ -1,0 +1,30 @@
+{
+  "repository": "smc-copilot/meeting-gateway",
+  "commit": "e966bd90637fd2ae95635635596779be99cf29b8",
+  "source_path": "scripts/tencent_live_smoke.py",
+  "git_blob_sha1": "998c477cb43dc5921fcf6a1961d98fcbdd0343d7",
+  "source_integrity_match": true,
+  "timestamp": "2026-10-17T00:29:55.431659+00:00",
+  "scope": "Isolated reproduction of exact downloaded-by-connector source. Not a repository suite or Tencent live test. Dummy configuration only.",
+  "python": "3.13.5",
+  "cases": [
+    {
+      "name": "disabled",
+      "exit_code": 0,
+      "stdout": "MEETING_LIVE is not 1; no Tencent call was made.",
+      "stderr": ""
+    },
+    {
+      "name": "enabled_without_configuration",
+      "exit_code": 2,
+      "stdout": "{\"step\": \"config\", \"status\": \"NOT_RUN\", \"reason\": \"MISSING_ENVIRONMENT\"}",
+      "stderr": ""
+    },
+    {
+      "name": "enabled_with_dummy_configuration",
+      "exit_code": 0,
+      "stdout": "{\"step\": \"config\", \"status\": \"NOT_RUN\", \"reason\": \"LIVE_CLIENT_NOT_BUNDLED\"}",
+      "stderr": ""
+    }
+  ]
+}
