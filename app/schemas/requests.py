@@ -112,11 +112,6 @@ class OperationReject(StrictModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
-class OAuthStart(StrictModel):
-    application_id: str = ""
-    return_to: str | None = None
-
-
 class OAuthSession(StrictModel):
     authorization_code: str = Field(min_length=8, max_length=256)
     client_id: str | None = Field(None, max_length=64)

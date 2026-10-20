@@ -5,7 +5,7 @@ from app.api.deps import business,runtime,envelope
 from app.core.errors import MeetingError
 from fastapi.responses import JSONResponse
 from app.schemas.requests import (MeetingCreate,SyncRequest,DownloadRequest,MeetingQuery,OperationConfirm,
-                                  OperationReject,OAuthStart,OAuthSession)
+                                  OperationReject,OAuthSession)
 from app.services.portal_service import PortalService
 from app.authorization.router import client_auth,throttle
 
@@ -42,12 +42,14 @@ async def create(request:Request,body:MeetingCreate,idempotency_key:str=Header(a
 async def meeting_queries(request:Request,body:MeetingQuery,p=Depends(business)):
     return envelope(request,await runtime(request).queries.submit(p,body))
 
-@router.post('/oauth/authorizations',status_code=201)
-async def oauth_authorization(request:Request,body:OAuthStart):
+@router.get('/oauth/authorizations')
+async def oauth_authorization(request:Request,continue_to:str|None=Query(None,max_length=2048),
+                              return_to:str|None=Query(None,max_length=2048),
+                              application_id:str=Query('',max_length=64)):
     await throttle(request)
     host=request.client.host if request.client else ''
     return envelope(request,await runtime(request).connections.oauth_start_public(
-        body.application_id or '',body.return_to,client_host=host))
+        application_id or '',continue_to or return_to,client_host=host))
 
 @router.post('/oauth/sessions',status_code=201)
 async def oauth_sessions(request:Request,body:OAuthSession):

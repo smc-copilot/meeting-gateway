@@ -96,6 +96,9 @@ class Settings(BaseSettings):
             return ""
         return self.public_base_url.rstrip("/") + "/callbacks/tencent/oauth/" + self.tencent_meeting_app_id
 
+    def fixed_oauth_complete_url(self) -> str:
+        return self.public_base_url.rstrip("/") + "/oauth/tencent/complete"
+
     def fixed_webhook_callback_url(self) -> str:
         if not self.tencent_meeting_app_id:
             return ""

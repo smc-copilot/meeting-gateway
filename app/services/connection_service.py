@@ -135,24 +135,33 @@ class ConnectionService:
             result.update({'transaction_id':tx.id,'expires_at':tx.expires_at})
             return result
 
-    async def oauth_start_public(self,application_id='',return_to=None,*,client_host=''):
-        """Start Tencent OAuth without employee or client credentials. return_to must be whitelisted."""
+    def _valid_continue_to(self,value):
+        if not value or not isinstance(value,str) or len(value)>2048:
+            return False
+        from urllib.parse import urlsplit
+        parsed=urlsplit(value)
+        if parsed.scheme not in {'https','http'} or not parsed.netloc or parsed.username:
+            return False
+        if self.rt.settings.environment=='production' and parsed.scheme!='https':
+            return False
+        return True
+
+    async def oauth_start_public(self,application_id='',continue_to=None,*,client_host=''):
+        """Start Tencent OAuth without credentials. Browser always returns to gateway complete URL."""
         org_id=self.rt.settings.meeting_org_id
         if not org_id:
             raise MeetingError('INVALID_REQUEST',422)
         await self.rt.rate.acquire('oauth-start:'+(client_host or 'unknown'),0.2)
+        if not self._valid_continue_to(continue_to):
+            raise MeetingError('INVALID_REQUEST',422)
+        return_to=self.rt.settings.fixed_oauth_complete_url()
         async with self.rt.db.transaction() as s:
             app=await self._resolve_oauth_app(s,org_id,application_id)
-            allowed=list((app.settings_data or {}).get('oauth_return_uris') or [])
-            if return_to is None:
-                raise MeetingError('INVALID_REQUEST',422)
-            if return_to not in allowed:
-                raise MeetingError('INVALID_REQUEST',422)
             state=secrets.token_hex(24)
             tx=AuthTransaction(org_id=org_id,purpose='TENCENT_OAUTH',secret_hash=digest(state),
                 application_id=app.id,client_id=None,member_id=None,status='PENDING',
                 expires_at=utcnow()+timedelta(seconds=self.rt.settings.upstream_state_seconds),
-                payload={'return_to':return_to,'bootstrap':True})
+                payload={'return_to':return_to,'continue_to':continue_to,'bootstrap':True})
             s.add(tx)
             await s.flush()
             principal=Principal(org_id=org_id,actor_type='SERVICE',client_id='oauth-public')
@@ -160,6 +169,23 @@ class ConnectionService:
             result=self._authorization_payload(app,state)
             result.update({'transaction_id':tx.id,'expires_at':tx.expires_at})
             return result
+
+    async def resolve_continue_to(self,*,authorization_code=None,connection_id=None):
+        async with self.rt.db.session() as s:
+            rows=list((await s.execute(select(AuthTransaction).where(
+                AuthTransaction.purpose=='TENCENT_OAUTH'))).scalars())
+            if authorization_code:
+                code_hash=digest(authorization_code)
+                for row in rows:
+                    payload=row.payload or {}
+                    if payload.get('authorization_code_hash')==code_hash and payload.get('continue_to'):
+                        return payload['continue_to']
+            if connection_id:
+                for row in reversed(rows):
+                    payload=row.payload or {}
+                    if payload.get('connection_id')==connection_id and payload.get('continue_to'):
+                        return payload['continue_to']
+        return None
 
     async def oauth_callback(self,application_id,state,code):
         if not state or not state.isalnum() or len(state)>64 or not code or len(code)>2048:
@@ -238,6 +264,7 @@ class ConnectionService:
                 await self.rt.policy.bump(s,org)
                 stored=dict(tx.payload or {})
                 result={'connection_id':c.id,'status':c.status,'return_to':stored.get('return_to'),
+                    'continue_to':stored.get('continue_to'),
                     'confirmation_url':self.rt.settings.portal_base_url+'/meeting/connections?connection_id='+c.id}
                 if auth_code:
                     result['authorization_code']=auth_code

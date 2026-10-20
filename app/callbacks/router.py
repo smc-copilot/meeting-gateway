@@ -66,3 +66,34 @@ async def oauth(request:Request,application_id:str,state:str=Query(min_length=1,
 async def oauth_result():
     page = '<!doctype html><meta charset="utf-8"><title>授权结果</title><p>授权已返回网关。请回到原业务系统查看结果。本页不包含令牌。</p>'
     return Response(page, media_type='text/html', headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer'})
+
+@router.get('/oauth/tencent/complete')
+async def oauth_complete(request:Request,connection_id:str=Query('',max_length=64),
+                         status:str=Query('',max_length=64),
+                         authorization_code:str|None=Query(None,max_length=256)):
+    """Gateway issues mt_ from oc_ (no client secret), then redirects to business continue_to."""
+    rt=runtime(request)
+    continue_to=await rt.connections.resolve_continue_to(
+        authorization_code=authorization_code,connection_id=connection_id or None)
+    if not continue_to:
+        page='<!doctype html><meta charset="utf-8"><title>授权失败</title><p>无法完成授权回跳。请回到业务系统重新发起扫码。</p>'
+        return Response(page,media_type='text/html',status_code=400,
+                        headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer'})
+    separator='&' if '?' in continue_to else '?'
+    fail=lambda reason: RedirectResponse(
+        continue_to+separator+urlencode({'connection_id':connection_id,'status':status or '','error':reason}),
+        status_code=303,headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer'})
+    if status!='ACTIVE' or not authorization_code:
+        return fail(status or 'OAUTH_FAILED')
+    try:
+        issued=await rt.auth.oauth_session_gateway(authorization_code)
+    except MeetingError as exc:
+        return fail(exc.reason)
+    params={'access_token':issued['access_token'],'token_type':issued.get('token_type') or 'Bearer',
+            'expires_in':str(issued.get('expires_in') or ''),'connection_id':issued.get('connection_id') or connection_id,
+            'member_id':issued.get('member_id') or '','status':'ACTIVE'}
+    if issued.get('session_token'):
+        params['session_token']=issued['session_token']
+        params['session_expires_in']=str(issued.get('session_expires_in') or '')
+    return RedirectResponse(continue_to+separator+urlencode(params),status_code=303,
+                            headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer'})

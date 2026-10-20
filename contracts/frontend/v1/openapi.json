@@ -302,17 +302,93 @@
       }
     },
     "/api/v1/oauth/authorizations": {
-      "post": {
+      "get": {
         "tags": [
           "meeting-business"
         ],
         "summary": "Oauth Authorization",
-        "operationId": "oauth_authorization_api_v1_oauth_authorizations_post",
+        "operationId": "oauth_authorization_api_v1_oauth_authorizations_get",
+        "parameters": [
+          {
+            "name": "continue_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Continue To"
+            }
+          },
+          {
+            "name": "return_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return To"
+            }
+          },
+          {
+            "name": "application_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "default": "",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/sessions": {
+      "post": {
+        "tags": [
+          "meeting-business"
+        ],
+        "summary": "Oauth Sessions",
+        "operationId": "oauth_sessions_api_v1_oauth_sessions_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OAuthStart"
+                "$ref": "#/components/schemas/OAuthSession"
               }
             }
           },
@@ -337,12 +413,52 @@
               }
             }
           }
-        },
+        }
+      }
+    },
+    "/api/v1/connections/{connection_id}/confirm": {
+      "post": {
+        "tags": [
+          "meeting-business"
+        ],
+        "summary": "Confirm Connection",
+        "operationId": "confirm_connection_api_v1_connections__connection_id__confirm_post",
         "security": [
           {
             "MeetingBearer": []
           }
-        ]
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Connection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/meetings/{meeting_id}/recordings": {
@@ -2781,6 +2897,198 @@
           }
         }
       }
+    },
+    "/api/v1/auth/account-login": {
+      "post": {
+        "tags": [
+          "meeting-identity"
+        ],
+        "summary": "Account Login",
+        "operationId": "account_login_api_v1_auth_account_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "tags": [
+          "meeting-identity"
+        ],
+        "summary": "Current Session",
+        "operationId": "current_session_api_v1_auth_session_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BackendBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "meeting-identity"
+        ],
+        "summary": "Logout",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/members/{member_id}/disable": {
+      "post": {
+        "tags": [
+          "meeting-identity"
+        ],
+        "summary": "Disable Member",
+        "operationId": "disable_member_api_v1_admin_members__member_id__disable_post",
+        "security": [
+          {
+            "BackendBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Member Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/members/{member_id}/enable": {
+      "post": {
+        "tags": [
+          "meeting-identity"
+        ],
+        "summary": "Enable Member",
+        "operationId": "enable_member_api_v1_admin_members__member_id__enable_post",
+        "security": [
+          {
+            "BackendBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Member Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2865,6 +3173,29 @@
           "reason"
         ],
         "title": "ACLCreate"
+      },
+      "AccountLogin": {
+        "properties": {
+          "account": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Account"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "account",
+          "password"
+        ],
+        "title": "AccountLogin"
       },
       "AdminSync": {
         "properties": {
@@ -3619,7 +3950,9 @@
             "enum": [
               "MEETING_ID",
               "USER_WINDOW",
-              "CORP_WINDOW"
+              "CORP_WINDOW",
+              "RECORDINGS",
+              "USER_RECORDINGS"
             ],
             "title": "Selection"
           },
@@ -3686,28 +4019,69 @@
         ],
         "title": "MeetingQuery"
       },
-      "OAuthStart": {
+      "MemberChange": {
         "properties": {
-          "application_id": {
+          "reason": {
             "type": "string",
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Application Id"
-          },
-          "return_to": {
-            "type": "string",
-            "maxLength": 512,
-            "minLength": 8,
-            "title": "Return To"
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "application_id",
-          "return_to"
+          "reason"
         ],
-        "title": "OAuthStart"
+        "title": "MemberChange"
+      },
+      "OAuthSession": {
+        "properties": {
+          "authorization_code": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Authorization Code"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Scopes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "authorization_code"
+        ],
+        "title": "OAuthSession"
       },
       "OperationConfirm": {
         "properties": {

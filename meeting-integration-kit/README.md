@@ -3,8 +3,8 @@
 适用代码：`smc-copilot/meeting-gateway`（以当前仓库提交为准）。
 
 **内部系统业务对接请优先阅读《内部系统对接联调说明.md》。**  
-主链路为：免鉴权起腾讯会议授权（仅 `return_to` 白名单）→ 扫码回调 → `/oauth/sessions`（需 client）换 `mt_` → 取会议数据。  
-`POST /api/v1/auth/account-login` 与 `POST /api/v1/auth/exchange` 已停用（410）。《部署与生态联调操作手册.md》中仍写这两步的段落已过时。
+主链路为：业务前端免鉴权起授权（传 `continue_to`）→ 扫码 → 腾讯回调网关 → `GET /oauth/tencent/complete` 内部签发 `mt_` → 303 到业务系统。  
+不需要业务侧 client 凭证，也不需要 return 白名单。`account-login` / `exchange` 已停用（410）。
 
 执行顺序见《部署与生态联调操作手册.md》（部署/基础设施）与《内部系统对接联调说明.md》（业务对接）。本包是仓库外的操作工具，不修改网关服务源码，不包含任何真实凭证。
 

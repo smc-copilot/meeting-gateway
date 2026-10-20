@@ -1,9 +1,7 @@
 import type { Row } from './types'
 
 const base = String(import.meta.env.VITE_MEETING_GATEWAY_URL || '/meeting-gateway').replace(/\/$/, '')
-const clientId = String(import.meta.env.VITE_MEETING_CLIENT_ID || '')
-const clientSecret = String(import.meta.env.VITE_MEETING_CLIENT_SECRET || '')
-const returnTo = String(import.meta.env.VITE_MEETING_OAUTH_RETURN_TO || (typeof window !== 'undefined' ? window.location.origin + '/meeting/connections' : ''))
+const continueTo = String(import.meta.env.VITE_MEETING_OAUTH_CONTINUE_TO || import.meta.env.VITE_MEETING_OAUTH_RETURN_TO || (typeof window !== 'undefined' ? window.location.origin + '/meeting/connections' : ''))
 
 let access: { value: string; expires: number; connectionId: string } | null = null
 let gatewaySession: { token: string; expires: number } | null = null
@@ -21,13 +19,6 @@ export function clearGatewaySession() {
   gatewaySession = null
 }
 
-function clientHeaders(): Record<string, string> {
-  if (!clientId || !clientSecret) {
-    throw new GatewayError('TOKEN_INVALID', '', 401, 'Configure VITE_MEETING_CLIENT_ID and VITE_MEETING_CLIENT_SECRET')
-  }
-  return { Authorization: 'Basic ' + btoa(`${clientId}:${clientSecret}`), 'Content-Type': 'application/json' }
-}
-
 async function parse(response: Response): Promise<any> {
   const data = await response.json().catch(() => ({}))
   if (!response.ok) throw new GatewayError(data.reason || 'HTTP_ERROR', data.trace_id || '', response.status, data.message || response.statusText)
@@ -35,38 +26,41 @@ async function parse(response: Response): Promise<any> {
 }
 
 export async function startAuthorize(applicationId = '') {
-  const response = await fetch(base + '/api/v1/oauth/authorizations', {
-    method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ application_id: applicationId, return_to: returnTo }),
+  const params = new URLSearchParams()
+  if (continueTo) params.set('continue_to', continueTo)
+  if (applicationId) params.set('application_id', applicationId)
+  const response = await fetch(base + '/api/v1/oauth/authorizations?' + params.toString(), {
+    method: 'GET', credentials: 'omit',
   })
   return parse(response)
 }
 
-export async function exchangeAuthorizationCode(authorizationCode: string) {
-  const response = await fetch(base + '/api/v1/oauth/sessions', {
-    method: 'POST', credentials: 'omit', headers: clientHeaders(),
-    body: JSON.stringify({ authorization_code: authorizationCode }),
-  })
-  const data = await parse(response)
-  access = {
-    value: data.access_token,
-    expires: Date.now() + data.expires_in * 1000,
-    connectionId: data.connection_id || '',
-  }
-  if (data.session_token) {
-    gatewaySession = {
-      token: data.session_token,
-      expires: Date.now() + (data.session_expires_in || data.expires_in) * 1000,
-    }
-  }
-  return data
-}
-
 export async function consumeOAuthReturn(search: string) {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
-  const code = params.get('authorization_code')
-  if (!code) return null
-  return exchangeAuthorizationCode(code)
+  if (params.get('error')) return null
+  const token = params.get('access_token')
+  if (!token) return null
+  const expiresIn = Number(params.get('expires_in') || '900')
+  access = {
+    value: token,
+    expires: Date.now() + Math.max(60, expiresIn) * 1000,
+    connectionId: params.get('connection_id') || '',
+  }
+  const sessionToken = params.get('session_token')
+  if (sessionToken) {
+    const sessionExpires = Number(params.get('session_expires_in') || expiresIn)
+    gatewaySession = {
+      token: sessionToken,
+      expires: Date.now() + Math.max(60, sessionExpires) * 1000,
+    }
+  }
+  return {
+    access_token: token,
+    expires_in: expiresIn,
+    connection_id: access.connectionId,
+    member_id: params.get('member_id') || '',
+    session_token: sessionToken || undefined,
+  }
 }
 
 function sessionToken(): string {
