@@ -36,7 +36,7 @@ async function parse(response: Response): Promise<any> {
 
 export async function startAuthorize(applicationId = '') {
   const response = await fetch(base + '/api/v1/oauth/authorizations', {
-    method: 'POST', credentials: 'omit', headers: clientHeaders(),
+    method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ application_id: applicationId, return_to: returnTo }),
   })
   return parse(response)

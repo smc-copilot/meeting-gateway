@@ -135,25 +135,27 @@ class ConnectionService:
             result.update({'transaction_id':tx.id,'expires_at':tx.expires_at})
             return result
 
-    async def oauth_start_for_client(self,client,application_id='',return_to=None,*,client_host=''):
-        if not live(client) or client.client_type!='CONFIDENTIAL':
-            raise MeetingError('TOKEN_INVALID',401)
-        await self.rt.rate.acquire('oauth-start:'+client.id+':'+(client_host or 'unknown'),0.2)
+    async def oauth_start_public(self,application_id='',return_to=None,*,client_host=''):
+        """Start Tencent OAuth without employee or client credentials. return_to must be whitelisted."""
+        org_id=self.rt.settings.meeting_org_id
+        if not org_id:
+            raise MeetingError('INVALID_REQUEST',422)
+        await self.rt.rate.acquire('oauth-start:'+(client_host or 'unknown'),0.2)
         async with self.rt.db.transaction() as s:
-            app=await self._resolve_oauth_app(s,client.org_id,application_id)
+            app=await self._resolve_oauth_app(s,org_id,application_id)
             allowed=list((app.settings_data or {}).get('oauth_return_uris') or [])
             if return_to is None:
                 raise MeetingError('INVALID_REQUEST',422)
             if return_to not in allowed:
                 raise MeetingError('INVALID_REQUEST',422)
             state=secrets.token_hex(24)
-            tx=AuthTransaction(org_id=client.org_id,purpose='TENCENT_OAUTH',secret_hash=digest(state),
-                application_id=app.id,client_id=client.id,member_id=None,status='PENDING',
+            tx=AuthTransaction(org_id=org_id,purpose='TENCENT_OAUTH',secret_hash=digest(state),
+                application_id=app.id,client_id=None,member_id=None,status='PENDING',
                 expires_at=utcnow()+timedelta(seconds=self.rt.settings.upstream_state_seconds),
-                payload={'return_to':return_to,'bootstrap':True,'client_id':client.id})
+                payload={'return_to':return_to,'bootstrap':True})
             s.add(tx)
             await s.flush()
-            principal=Principal(org_id=client.org_id,actor_type='SERVICE',client_id=client.id)
+            principal=Principal(org_id=org_id,actor_type='SERVICE',client_id='oauth-public')
             record(s,principal,'oauth.started',resource_id=app.id)
             result=self._authorization_payload(app,state)
             result.update({'transaction_id':tx.id,'expires_at':tx.expires_at})
@@ -229,7 +231,9 @@ class ConnectionService:
                 payload={**(tx.payload or {}),'connection_id':c.id,'member_id':member}
                 if auth_code:
                     payload.update({'authorization_code_hash':digest(auth_code),'authorization_code_expires_at':code_expires.isoformat(),
-                                   'authorization_code_used_at':None,'client_id':client_id})
+                                   'authorization_code_used_at':None})
+                    if client_id:
+                        payload['client_id']=client_id
                 tx.status='RECEIVED';tx.payload=payload
                 await self.rt.policy.bump(s,org)
                 stored=dict(tx.payload or {})

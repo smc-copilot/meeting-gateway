@@ -162,13 +162,17 @@ class AuthService:
                     raise MeetingError("PERMISSION_DENIED", 403)
                 rows = list((await session.execute(select(AuthTransaction).where(
                     AuthTransaction.purpose == "TENCENT_OAUTH", AuthTransaction.status == "RECEIVED",
-                    AuthTransaction.client_id == client.id, AuthTransaction.org_id == client.org_id))).scalars())
+                    AuthTransaction.org_id == client.org_id))).scalars())
                 tx = None
                 for row in rows:
                     payload = row.payload or {}
-                    if payload.get("authorization_code_hash") == digest(authorization_code):
-                        tx = row
-                        break
+                    if payload.get("authorization_code_hash") != digest(authorization_code):
+                        continue
+                    bound = payload.get("client_id") or row.client_id
+                    if bound and bound != client.id:
+                        continue
+                    tx = row
+                    break
                 if tx is None:
                     raise MeetingError("STATE_INVALID", 400)
                 payload = dict(tx.payload or {})

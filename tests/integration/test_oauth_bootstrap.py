@@ -1,4 +1,4 @@
-"""Client-authenticated Tencent OAuth bootstrap: start → callback → sessions → business token."""
+"""Public OAuth start → callback → client sessions → business token."""
 import base64
 from datetime import timedelta
 from urllib.parse import parse_qs, urlsplit
@@ -96,22 +96,23 @@ async def test_account_login_and_exchange_http_disabled(bootstrap_rt):
         assert exchange.json()["reason"] == "AUTH_EXCHANGE_DISABLED"
 
 
-async def test_client_oauth_bootstrap_issues_business_token(bootstrap_rt):
-    async with bootstrap_rt.db.session() as session:
-        client = await session.get(Client, "c-boot")
-        client_snap = type("C", (), {
-            "id": client.id, "org_id": client.org_id, "client_type": client.client_type,
-            "enabled": True, "deleted_at": None, "agent_id": None,
-        })()
-    started = await bootstrap_rt.connections.oauth_start_for_client(client_snap, "", RETURN_TO, client_host="127.0.0.1")
-    assert "authorization_url" in started
-    query = parse_qs(urlsplit(started["authorization_url"]).query)
-    state = query["state"][0]
-    assert query["redirect_uri"][0].endswith("/callbacks/tencent/oauth/" + SDK)
+async def test_public_oauth_bootstrap_issues_business_token(bootstrap_rt):
+    app = create_app(runtime=bootstrap_rt)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="https://meeting.example.org") as http:
+        started = await http.post("/api/v1/oauth/authorizations", json={
+            "return_to": RETURN_TO, "application_id": "",
+        })
+        assert started.status_code == 201, started.text
+        data = started.json()["data"]
+        assert "authorization_url" in data
+        query = parse_qs(urlsplit(data["authorization_url"]).query)
+        state = query["state"][0]
+        assert query["redirect_uri"][0].endswith("/callbacks/tencent/oauth/" + SDK)
 
     async with bootstrap_rt.db.session() as session:
-        app = await session.scalar(select(Application).where(Application.sdk_id == SDK))
-        app_id = app.id
+        row = await session.scalar(select(Application).where(Application.sdk_id == SDK))
+        app_id = row.id
 
     callback = await bootstrap_rt.connections.oauth_callback(app_id, state, "auth-code-once")
     assert callback["status"] == "ACTIVE"
@@ -141,11 +142,20 @@ async def test_client_oauth_bootstrap_issues_business_token(bootstrap_rt):
 
 
 async def test_oauth_start_requires_return_to_whitelist(bootstrap_rt):
-    client_snap = type("C", (), {
-        "id": "c-boot", "org_id": "o1", "client_type": "CONFIDENTIAL",
-        "enabled": True, "deleted_at": None, "agent_id": None,
-    })()
     with pytest.raises(MeetingError) as exc:
-        await bootstrap_rt.connections.oauth_start_for_client(
-            client_snap, "", "https://evil.example.org/cb", client_host="127.0.0.1")
+        await bootstrap_rt.connections.oauth_start_public(
+            "", "https://evil.example.org/cb", client_host="127.0.0.1")
     assert exc.value.reason == "INVALID_REQUEST"
+
+
+async def test_oauth_authorizations_http_no_auth_header(bootstrap_rt):
+    app = create_app(runtime=bootstrap_rt)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="https://meeting.example.org") as http:
+        denied = await http.post("/api/v1/oauth/authorizations", json={
+            "return_to": "https://evil.example.org/cb",
+        })
+        assert denied.status_code == 422
+        ok = await http.post("/api/v1/oauth/authorizations", json={"return_to": RETURN_TO})
+        assert ok.status_code == 201
+        assert ok.json()["data"]["authorization_url"].startswith("https://meeting.tencent.com/")
