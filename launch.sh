@@ -263,12 +263,15 @@ run_migrate() {
 # ---------------------------------------------------------------- 5. 启动
 start_api() {
   cd "$REPO" || die "cd $REPO 失败"
+  # 方案 C：去掉 --no-access-log，让 uvicorn 记录每条请求（method/path/query/状态码/耗时）
+  # 注意：/oauth/ 与 /callbacks/ 的 query 含一次性凭据，会一并落到 api.log
   nohup "$PY" -m uvicorn app.main:create_app --factory \
-    --host "$API_BIND" --port "$API_PORT" --no-access-log \
+    --host "$API_BIND" --port "$API_PORT" --log-level info \
     >>"$LOGDIR/api.log" 2>&1 &
   echo $! > "$RUNDIR/api.pid"
+  chmod 600 "$LOGDIR/api.log" 2>/dev/null
   sleep 3
-  alive "$(api_pid)" && ok "api 已启动 pid=$(api_pid) → $API_BIND:$API_PORT" \
+  alive "$(api_pid)" && ok "api 已启动 pid=$(api_pid) → $API_BIND:$API_PORT（访问日志已开启）" \
     || { bad "api 启动即退出"; tail -25 "$LOGDIR/api.log"; }
 }
 
