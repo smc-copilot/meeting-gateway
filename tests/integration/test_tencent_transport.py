@@ -93,6 +93,54 @@ async def test_oauth_raw_endpoint_and_explicit_body(rt):
     assert 'private' not in str(requests[0].url)
 
 
+async def test_participants_oauth_path_uses_userid_open_id(rt,human,enterprise_app_body):
+    from app.schemas.requests import ApplicationCreate
+    from urllib.parse import urlsplit, parse_qs
+    await rt.admin.bootstrap(human)
+    data=enterprise_app_body.model_dump()
+    data.update(application_type='THIRD_PARTY_OAUTH',sdk_id='oauth-sdk',data_scope='user',secret_id=None,secret_key=None,
+                oauth_secret='oauth-client-test-secret',allowed_open_corp_ids=['open-corp'])
+    app=await rt.admin.create_application(human,ApplicationCreate(**data))
+    start=await rt.connections.oauth_start(human,app['id'])
+    state=parse_qs(urlsplit(start['authorization_url']).query)['state'][0]
+    callback=await rt.connections.oauth_callback(app['id'],state,'auth-code')
+    await rt.connections.confirm_oauth(human,callback['connection_id'])
+    seen=[]
+    client=await actual_transport(rt,lambda request:(seen.append(request) or httpx.Response(200,json={'participants':[],'has_remaining':False})))
+    await client.call(callback['connection_id'],'participants',Operator(id='open-m1',type=2),file_id='mtg-1',query={'pos':0,'size':20})
+    assert seen[0].url.path=='/v1/meetings/mtg-1/participants'
+    assert seen[0].url.params['userid']=='open-m1'
+    assert 'AccessToken' in seen[0].headers and 'OpenId' in seen[0].headers
+    assert 'X-TC-Signature' not in seen[0].headers
+
+
+async def test_user_basic_oauth_path_and_aksk_blocked(rt,human,enterprise_app_body):
+    from app.schemas.requests import ApplicationCreate
+    from urllib.parse import urlsplit, parse_qs
+    a,c=await prepare(rt,human,enterprise_app_body)
+    data=enterprise_app_body.model_dump()
+    data.update(application_type='THIRD_PARTY_OAUTH',sdk_id='oauth-sdk-basic',data_scope='user',secret_id=None,secret_key=None,
+                oauth_secret='oauth-client-test-secret',allowed_open_corp_ids=['open-corp'],name='OAuth basic info')
+    app=await rt.admin.create_application(human,ApplicationCreate(**data))
+    start=await rt.connections.oauth_start(human,app['id'])
+    state=parse_qs(urlsplit(start['authorization_url']).query)['state'][0]
+    callback=await rt.connections.oauth_callback(app['id'],state,'auth-code')
+    await rt.connections.confirm_oauth(human,callback['connection_id'])
+    seen=[]
+    client=await actual_transport(rt,lambda request:(seen.append(request) or httpx.Response(200,json={'username':'nick'})))
+    raw=await client.call(callback['connection_id'],'user_basic',Operator(id='open-m1',type=2),
+                          query={'operator_id':'open-other'})
+    assert raw['username']=='nick'
+    assert seen[0].url.path=='/v1/users/info/basic'
+    assert seen[0].url.params['operator_id']=='open-other'
+    assert seen[0].url.params['operator_id_type']=='2'
+    before=len(seen)
+    with pytest.raises(MeetingError) as e:
+        await client.call(c['id'],'user_basic',Operator(id='external-m1',type=1),query={'operator_id':'anyone'})
+    assert e.value.reason=='UPSTREAM_CAPABILITY_UNAVAILABLE' and len(seen)==before
+
+
+
 async def test_resource_body_size_limit(rt,human,enterprise_app_body):
     a,c=await prepare(rt,human,enterprise_app_body)
     rt.settings.max_upstream_json_bytes=1024

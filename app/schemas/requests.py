@@ -104,6 +104,30 @@ class MeetingQuery(StrictModel):
     end_at: AwareDatetime | None = None
 
 
+class OAuthUsersSync(StrictModel):
+    connection_ref: str = Field(min_length=1, max_length=64)
+    open_ids: list[str] = Field(min_length=1, max_length=50)
+
+    @field_validator("open_ids")
+    @classmethod
+    def open_ids_nonblank(cls, value):
+        cleaned = []
+        seen = set()
+        for item in value:
+            if not isinstance(item, str):
+                raise ValueError("open_id must be string")
+            text = item.strip()
+            if not text or len(text) > 128:
+                raise ValueError("open_id invalid")
+            if text in seen:
+                continue
+            seen.add(text)
+            cleaned.append(text)
+        if not cleaned:
+            raise ValueError("open_ids required")
+        return cleaned
+
+
 class OperationConfirm(StrictModel):
     request_hash: str = Field(min_length=64, max_length=64)
 

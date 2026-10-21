@@ -4,8 +4,8 @@ from starlette.background import BackgroundTask
 from app.api.deps import business,runtime,envelope
 from app.core.errors import MeetingError
 from fastapi.responses import JSONResponse
-from app.schemas.requests import (MeetingCreate,SyncRequest,DownloadRequest,MeetingQuery,OperationConfirm,
-                                  OperationReject,OAuthSession)
+from app.schemas.requests import (MeetingCreate,SyncRequest,DownloadRequest,MeetingQuery,OAuthUsersSync,
+                                  OperationConfirm,OperationReject,OAuthSession)
 from app.services.portal_service import PortalService
 from app.authorization.router import client_auth,throttle
 
@@ -41,6 +41,27 @@ async def create(request:Request,body:MeetingCreate,idempotency_key:str=Header(a
 @router.post('/meeting-queries')
 async def meeting_queries(request:Request,body:MeetingQuery,p=Depends(business)):
     return maybe_accepted(request,await runtime(request).queries.submit(p,body))
+
+@router.post('/oauth-users/sync')
+async def oauth_users_sync(request:Request,body:OAuthUsersSync,p=Depends(business)):
+    return envelope(request,await runtime(request).oauth_users.sync(p,body))
+
+@router.get('/connections/{connection_ref}/meetings/{meeting_id}/participants')
+async def meeting_participants(request:Request,connection_ref:str,meeting_id:str,
+                               pos:int=Query(0,ge=0),size:int=Query(20,ge=1,le=100),p=Depends(business)):
+    return envelope(request,await runtime(request).participant_cache.list_participants(
+        p,connection_ref,meeting_id,pos=pos,size=size))
+
+@router.get('/connections/{connection_ref}/meetings/{meeting_id}/record-files')
+async def meeting_record_files(request:Request,connection_ref:str,meeting_id:str,
+                               pos:int=Query(0,ge=0),size:int=Query(20,ge=1,le=100),p=Depends(business)):
+    return envelope(request,await runtime(request).record_file_cache.list_record_files(
+        p,connection_ref,meeting_id,pos=pos,size=size))
+
+@router.get('/connections/{connection_ref}/record-files/{record_file_id}')
+async def record_file_detail(request:Request,connection_ref:str,record_file_id:str,p=Depends(business)):
+    return envelope(request,await runtime(request).record_file_cache.get_record_file_detail(
+        p,connection_ref,record_file_id))
 
 @router.get('/oauth/authorizations')
 async def oauth_authorization(request:Request,continue_to:str|None=Query(None,max_length=2048),

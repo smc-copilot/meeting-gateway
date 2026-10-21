@@ -17,13 +17,15 @@ from app.integrations.tencent_meeting.signing import sign_request
 
 API_ORIGIN='https://api.meeting.qq.com'
 OAUTH_ORIGIN='https://meeting.tencent.com/wemeet-webapi/v2/oauth2/oauth/'
-OPERATIONS=frozenset({'upcoming','history','records','corp_records','record_detail','transcript','minutes','create','sts','meeting'})
+OPERATIONS=frozenset({'upcoming','history','records','corp_records','record_detail','transcript','minutes','create','sts','meeting','participants','user_basic'})
 QUERY_FIELDS={
  'upcoming':{'pos','cursory'},'history':{'start_time','end_time','page','page_size'},
  'records':{'start_time','end_time','page','page_size','meeting_id'},
  'corp_records':{'start_time','end_time','page','page_size'},
  'record_detail':set(),'transcript':{'pid','limit','meeting_id'},
  'minutes':{'llm','minute_type','text_type','lang'},'create':set(),'sts':set(),'meeting':set(),
+ 'participants':{'pos','size','sub_meeting_id','start_time','end_time'},
+ 'user_basic':{'operator_id'},
 }
 
 
@@ -122,6 +124,7 @@ class TencentClient:
                 if operation in {'corp_records','sts'}:raise MeetingError('UPSTREAM_CAPABILITY_UNAVAILABLE',409)
                 material=None
             else:
+                if operation=='user_basic':raise MeetingError('UPSTREAM_CAPABILITY_UNAVAILABLE',409)
                 if operator.type!=1:raise MeetingError('IDENTITY_UNBOUND',409)
                 mapping=await s.scalar(select(IdentityBinding).where(IdentityBinding.application_id==app.id,
                     IdentityBinding.org_id==c.org_id,IdentityBinding.external_id==operator.id,
@@ -139,13 +142,24 @@ class TencentClient:
         elif operation=='minutes':path='/v1/smart/minutes/'+_external(file_id);query.update(operator_id=operator.id,operator_id_type=operator.type)
         elif operation=='meeting':
             path='/v1/meetings/'+_external(file_id);query.update(userid=operator.id,instanceid=1)
+        elif operation=='participants':
+            path='/v1/meetings/'+_external(file_id)+'/participants';query.update(userid=operator.id)
+        elif operation=='user_basic':
+            # GET /v1/users/info/basic — OAuth only; needs VIEW_USER_BASIC_INFO.
+            # operator_id is the target open_id (not the caller).
+            path='/v1/users/info/basic'
+            target=str(query.get('operator_id') or '')
+            if not 1<=len(target)<=128:raise MeetingError('INVALID_REQUEST',422)
+            query={'operator_id':target,'operator_id_type':2}
         elif operation=='create':
             path='/v1/meetings'
             if not isinstance(body,dict) or body.get('userid')!=operator.id:raise MeetingError('INVALID_REQUEST',422)
-        else:
+        elif operation=='sts':
             path='/v1/app/sts-token'
             if not isinstance(body,dict) or body.get('operator_id')!=operator.id or body.get('operator_id_type')!=operator.type:
                 raise MeetingError('INVALID_REQUEST',422)
+        else:
+            raise MeetingError('INVALID_REQUEST',422)
         if file_id is not None:_external(file_id)
         url=httpx.URL(API_ORIGIN+path,params=query)
         raw=canonical(body) if method=='POST' else b''

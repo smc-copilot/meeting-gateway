@@ -57,6 +57,18 @@ class Runtime:
         from app.services.query_service import QueryService
         return QueryService(self)
     @cached_property
+    def oauth_users(self):
+        from app.services.oauth_users_service import OAuthUsersService
+        return OAuthUsersService(self)
+    @cached_property
+    def participant_cache(self):
+        from app.services.participant_cache_service import ParticipantCacheService
+        return ParticipantCacheService(self)
+    @cached_property
+    def record_file_cache(self):
+        from app.services.record_file_cache_service import RecordFileCacheService
+        return RecordFileCacheService(self)
+    @cached_property
     def content(self):
         from app.services.content_service import ContentService
         return ContentService(self)
