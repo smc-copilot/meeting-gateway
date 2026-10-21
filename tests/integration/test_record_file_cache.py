@@ -2,7 +2,8 @@ from sqlalchemy import select
 import pytest
 from app.core.errors import MeetingError, UpstreamError
 from app.models import Connection, MeetingRecordFileRow, MeetingRecordFileSnapshot
-from app.services.record_file_cache_service import RECORDS_PAGE_SIZE
+from app.core.types import utcnow
+from app.services.record_file_cache_service import MAX_WINDOW_SECONDS, RECORDS_PAGE_SIZE
 from test_resources_jobs import seed
 from test_operations import member_oauth
 
@@ -25,20 +26,17 @@ async def test_record_files_cache_fetch_then_hit(rt, human, enterprise_app_body)
     def response(operation, kwargs):
         if operation == 'meeting':
             pages['meeting'] += 1
-            return {'meeting_info_list': [{
-                'meeting_id': 'meet-rf',
-                'subject': '有录制',
-                'meeting_code': '111222',
-                'start_time': 1602950400,
-                'end_time': 1603036800,
-            }]}
+            return {}
         if operation == 'records':
             pages['records'] += 1
             query = kwargs.get('query') or {}
             assert query.get('meeting_id') == 'meet-rf'
             assert query.get('page_size') == RECORDS_PAGE_SIZE
-            assert query.get('start_time') == 1602950400
-            assert query.get('end_time') == 1603036800
+            start = query.get('start_time')
+            end = query.get('end_time')
+            assert isinstance(start, int) and isinstance(end, int)
+            assert end - start == MAX_WINDOW_SECONDS
+            assert abs(end - int(utcnow().timestamp())) <= 5
             if query.get('page', 1) == 1:
                 return {
                     'total_page': 2,
@@ -84,13 +82,13 @@ async def test_record_files_cache_fetch_then_hit(rt, human, enterprise_app_body)
     assert first['record_file_count'] == 2
     assert first['record_files'][0]['record_file_id'] == '1318080818611111111'
     assert first['record_files'][0]['password'] == 'cK3wAsfw'
-    assert pages['meeting'] == 1 and pages['records'] == 2
+    assert pages['meeting'] == 0 and pages['records'] == 2
 
     second = await rt.record_file_cache.list_record_files(p, c['id'], 'meet-rf', pos=0, size=1)
     assert second['source'] == 'cache'
     assert second['has_remaining'] is True
     assert len(second['record_files']) == 1
-    assert pages['records'] == 2 and pages['meeting'] == 1
+    assert pages['records'] == 2 and pages['meeting'] == 0
 
     async with rt.db.session() as s:
         snap = await s.scalar(select(MeetingRecordFileSnapshot).where(
@@ -107,11 +105,6 @@ async def test_record_files_fetch_failure_leaves_no_rows(rt, human, enterprise_a
     c, p = await _oauth_member(rt, human, enterprise_app_body)
 
     def response(operation, kwargs):
-        if operation == 'meeting':
-            return {'meeting_info_list': [{
-                'meeting_id': 'meet-fail', 'subject': 'x',
-                'start_time': 1602950400, 'end_time': 1603036800,
-            }]}
         if operation == 'records':
             raise UpstreamError('UPSTREAM_PERMISSION_DENIED')
         return {}

@@ -80,7 +80,7 @@ class RecordFileCacheService:
             source = 'cache'
             if snapshot is None:
                 operator = await self.rt.connections.operator(c, member_id=p.member_id)
-                start_time, end_time = await self._resolve_window(c, operator, meeting_id)
+                start_time, end_time = self._default_window()
                 files, meta = await self._fetch_all_pages(c, operator, meeting_id, start_time, end_time)
                 snapshot = await self._write_all(p.org_id, c.id, meeting_id, files, meta)
                 source = 'fetched'
@@ -122,31 +122,10 @@ class RecordFileCacheService:
                 MeetingRecordFileSnapshot.external_meeting_id == meeting_id,
                 MeetingRecordFileSnapshot.deleted_at.is_(None)))
 
-    async def _resolve_window(self, connection, operator, meeting_id):
-        try:
-            payload = await self.rt.tencent.call(connection.id, 'meeting', operator, file_id=meeting_id)
-        except MeetingError as exc:
-            if exc.reason == 'RESOURCE_NOT_ACCESSIBLE':
-                raise
-            raise MeetingError('RESOURCE_NOT_ACCESSIBLE', 404) from exc
-        item = None
-        if isinstance(payload, dict):
-            listed = payload.get('meeting_info_list')
-            if isinstance(listed, list) and listed and isinstance(listed[0], dict):
-                item = listed[0]
-            elif payload.get('meeting_id'):
-                item = payload
-        if not item or str(item.get('meeting_id')) != str(meeting_id):
-            raise MeetingError('RESOURCE_NOT_ACCESSIBLE', 404)
-        start = _as_int(item.get('start_time'))
-        end = _as_int(item.get('end_time'))
-        if start is None:
-            raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
-        now = int(utcnow().timestamp())
-        if end is None or end <= start:
-            end = min(now, start + MAX_WINDOW_SECONDS)
-        if end - start > MAX_WINDOW_SECONDS:
-            end = start + MAX_WINDOW_SECONDS
+    def _default_window(self):
+        """Tencent 51189 requires start_time/end_time within 31 days; gateway assigns defaults."""
+        end = int(utcnow().timestamp())
+        start = end - MAX_WINDOW_SECONDS
         if end <= start:
             end = start + 60
         return start, end
