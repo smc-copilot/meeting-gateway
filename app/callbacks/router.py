@@ -47,6 +47,22 @@ async def event(request:Request,receiver_id:str,body:CallbackBody):
     except TimeoutError:raise MeetingError('UPSTREAM_UNAVAILABLE',503)
     return Response(b'successfully received callback',media_type='text/plain',headers={'Cache-Control':'no-store'})
 
+@router.get('/callbacks/tencent/app/events')
+async def app_challenge(request:Request,check_str:str=Query(min_length=1,max_length=1048576)):
+    rt=runtime(request)
+    try:
+        value=await asyncio.wait_for(rt.env_sts.challenge(check_str,callback_headers(request)),timeout=2.7)
+    except TimeoutError:raise MeetingError('UPSTREAM_UNAVAILABLE',503)
+    return Response(value,media_type='text/plain',headers={'Cache-Control':'no-store'})
+
+@router.post('/callbacks/tencent/app/events')
+async def app_event(request:Request,body:CallbackBody):
+    rt=runtime(request)
+    try:
+        await asyncio.wait_for(rt.env_sts.receive(body.data,callback_headers(request)),timeout=4.5)
+    except TimeoutError:raise MeetingError('UPSTREAM_UNAVAILABLE',503)
+    return Response(b'successfully received callback',media_type='text/plain',headers={'Cache-Control':'no-store'})
+
 @router.get('/callbacks/tencent/oauth/{application_id}')
 async def oauth(request:Request,application_id:str,state:str=Query(min_length=1,max_length=64),
                 auth_code:str|None=Query(None,max_length=2048),code:str|None=Query(None,max_length=2048)):

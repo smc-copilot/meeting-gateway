@@ -65,6 +65,10 @@ class FakeTencent:
         kwargs = {'query': query}
         self.calls.append(('env-aksk', 'records_aksk', None, kwargs))
         return self._dispatch('records_aksk', kwargs)
+    async def sts_request(self, *, valid_hours, heartbeat=None):
+        kwargs = {'valid_hours': valid_hours}
+        self.calls.append(('env-aksk', 'sts_request', None, kwargs))
+        return self._dispatch('sts_request', kwargs)
     async def oauth(self, operation, payload):
         self.calls.append(('oauth',operation,payload))
         if self.error:

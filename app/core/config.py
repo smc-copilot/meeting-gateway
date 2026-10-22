@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     tencent_meeting_app_secret_key: SecretStr = SecretStr("")
     tencent_meeting_app_sdk_id: str = ""
     tencent_meeting_app_operator_id: str = ""
+    tencent_meeting_app_webhook_token: SecretStr = SecretStr("")
+    tencent_meeting_app_webhook_encoding_key: SecretStr = SecretStr("")
+    tencent_meeting_sts_valid_hours: int = Field(24, ge=6, le=24)
+    tencent_meeting_sts_refresh_margin_seconds: int = Field(3600, ge=60, le=86400)
     tencent_meeting_allowed_open_corp_ids: list[str] = Field(default_factory=list)
     tencent_meeting_oauth_return_uris: list[str] = Field(default_factory=list)
     tencent_meeting_webhook_name: str = ""
@@ -136,6 +140,21 @@ class Settings(BaseSettings):
             "sdk_id": sdk_id,
             "operator_id": operator_id,
         }
+
+    def tencent_app_webhook_complete(self) -> bool:
+        token = self.tencent_meeting_app_webhook_token.get_secret_value().strip()
+        encoding_key = self.tencent_meeting_app_webhook_encoding_key.get_secret_value().strip()
+        if not (token and encoding_key):
+            return False
+        try:
+            from app.integrations.tencent_meeting.webhook import _key
+            _key(encoding_key)
+        except ValueError:
+            return False
+        return True
+
+    def fixed_app_webhook_callback_url(self) -> str:
+        return self.public_base_url.rstrip("/") + "/callbacks/tencent/app/events"
 
     def _check_tencent_webhook(self):
         from app.integrations.tencent_meeting.webhook import _key

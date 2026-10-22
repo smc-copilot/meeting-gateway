@@ -78,7 +78,7 @@ class Worker:
         from app.services.maintenance_service import MaintenanceService
         maintenance = MaintenanceService(self.rt)
         for function in (self.rt.sync.schedule_due, maintenance.tokens, maintenance.personal_sync,
-                         self.rt.events.invalidate_delivery_access):
+                         self.rt.events.invalidate_delivery_access, self.rt.env_sts.refresh_due):
             try:
                 await function()
             except Exception as exc:

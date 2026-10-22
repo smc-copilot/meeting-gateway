@@ -93,6 +93,10 @@ class Runtime:
         from app.services.event_service import EventService
         return EventService(self)
     @cached_property
+    def env_sts(self):
+        from app.services.env_sts_service import EnvStsService
+        return EnvStsService(self)
+    @cached_property
     def rate(self):
         from app.services.rate_service import RateService
         return RateService(self)

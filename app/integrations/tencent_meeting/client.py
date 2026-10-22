@@ -273,3 +273,28 @@ class TencentClient:
         self.rt.metrics['upstream_calls'] += 1
         return await self._send(
             'GET', url, headers, raw, credential_channel=False, write=False, diag='records_aksk')
+
+    async def sts_request(self, *, valid_hours: int, heartbeat=None):
+        if valid_hours not in {6, 12, 24}:
+            raise MeetingError('INVALID_REQUEST', 422)
+        material = self._require_env_aksk()
+        body = {
+            'operator_id': material['operator_id'],
+            'operator_id_type': 1,
+            'valid_time': valid_hours,
+        }
+        raw = canonical(body)
+        url = httpx.URL(API_ORIGIN + '/v1/app/sts-token')
+        headers = self._env_aksk_headers('POST', url.raw_path.decode('ascii'), raw, material)
+        await self.rt.rate.acquire(
+            'tencent-env-aksk:' + material['corp_id'],
+            self.rt.settings.upstream_min_interval_seconds,
+            heartbeat=heartbeat,
+        )
+        self.rt.metrics['upstream_calls'] += 1
+        result = await self._send(
+            'POST', url, headers, raw, credential_channel=False, write=False, diag='sts_request')
+        req_id = result.get('req_id') if isinstance(result, dict) else None
+        if not isinstance(req_id, str) or not req_id or len(req_id) > 128:
+            raise MeetingError('UPSTREAM_CONTRACT_ERROR', 502)
+        return {'req_id': req_id}

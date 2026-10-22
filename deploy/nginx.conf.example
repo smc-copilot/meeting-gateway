@@ -58,4 +58,12 @@ server {
         proxy_set_header X-Forwarded-Proto https;
         proxy_read_timeout 10s;
     }
+    # Enterprise self-built app STS Token / event subscription callback (env AK/SK app).
+    location = /callbacks/tencent/app/events {
+        access_log /var/log/nginx/meeting-callback.log meeting_callback;
+        proxy_pass http://127.0.0.1:4522;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 10s;
+    }
 }
