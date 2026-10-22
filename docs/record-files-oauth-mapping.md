@@ -16,7 +16,7 @@
 - `userid`：本地表 `meeting_oauth_userid_maps` 将 OAuth `open_id`（`connection.external_id`）映射为企业 `userid`；未命中则 AK/SK 调 `POST /v1/users/open-id-to-userid`（body.`sdkid` = `.env` `TENCENT_MEETING_APP_ID`，即当前 OAuth 第三方应用 ID；`operator_id` = `TENCENT_MEETING_APP_OPERATOR_ID`）后落库再查录制
 - 行为：
   1. 本地快照命中 → 直接按本地 `record_files` 返回
-  2. 未命中 → 校验企业 AK/SK env → 解析 userid → 默认时间窗 `end_time=now`、`start_time=now-31天` → 分页拉 `/v1/records?meeting_id=...&userid=...&operator_id=...&operator_id_type=1` → 按 `record_file_id` 去重后**单事务全成全败**落库，再返回本地数据
+  2. 未命中 → 校验企业 AK/SK env → 解析 userid → 默认时间窗 `end_time=now`、`start_time=now-31天` → 分页拉 `/v1/records?meeting_id=...&userid=...&operator_id=...&operator_id_type=1` → 按 `record_file_id` 去重后**单事务全成全败**落库，再返回本地数据。上游无录制（`record_meetings` 空/`null`、`total_page=0`）视为成功，缓存空列表，不报契约错误
 - 唯一键：`(org_id, connection_id, external_meeting_id, record_file_id)`（活跃 Partial Unique）
 - `password` 等共享字段会落库并回传；**禁止**写入 audit/日志
 - 本轮无强制刷新
@@ -29,6 +29,10 @@
 - 上游：[查询单个录制详情](https://cloud.tencent.com/document/product/1095/51180) — `GET /v1/addresses/{record_file_id}`
 - Gateway **原样**返回腾讯 JSON（播放/下载地址、转写/纪要下载链等）；不落库、不裁剪
 - 下载类链接约 5 分钟失效，故不做详情缓存
-- 本轮仍走连接既有上游通道（未改为 env AK/SK）
+- 业务鉴权：本人 OAuth `connection_ref` + `meeting.read`（路径不变；AK/SK connection 拒绝）
+- 上游鉴权：**企业 AK/SK**（与 R1 同一套 `.env` 五元组）+ Header **`STS-Token`**
+  - `operator_id` = `TENCENT_MEETING_APP_OPERATOR_ID`，`operator_id_type=1`
+  - STS 来自部署级 `env_sts.current_token()`（回调入库，见 [`sts-token-callback.md`](sts-token-callback.md)）
+  - 无可用 STS：先 `refresh_due()` 触发 `POST /v1/app/sts-token`，仍无则 `STS_NOT_READY`（409）；缺企业 AK/SK → `UPSTREAM_CREDENTIAL_INVALID`（409）；不回退 OAuth
 
 两条接口业务侧均仅 **本人 OAuth 连接** + `meeting.read`。

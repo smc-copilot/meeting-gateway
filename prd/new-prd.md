@@ -98,8 +98,8 @@
 #### R2 录制详情（透传，不落库）
 
 - **路径参数**：`connection_ref`；`record_file_id`（来自 R1 的 `record_files[].record_file_id`）。
-- **行为**：调用腾讯 51180，将上游 JSON **原样**放入 envelope `data`；不裁剪、不落库、不缓存（下载链约 5 分钟失效）。
-- **鉴权**：本人 OAuth + `meeting.read`；AK/SK 拒绝。
+- **行为**：用 **`.env` 企业 AK/SK** 调腾讯 51180（`operator_id=TENCENT_MEETING_APP_OPERATOR_ID`、`operator_id_type=1`），请求头携带部署级 **STS-Token**（`env_sts.current_token()`）；将上游 JSON **原样**放入 envelope `data`；不裁剪、不落库、不缓存（下载链约 5 分钟失效）。无 STS 时触发 refresh，仍无则 `STS_NOT_READY`；缺企业 AK/SK env 则 `UPSTREAM_CREDENTIAL_INVALID`，不回退 OAuth。
+- **鉴权**：业务入口本人 OAuth + `meeting.read`（拒绝以 AK/SK connection 调本接口）；上游腾讯侧为企业 AK/SK + STS-Token。
 - **响应 `data`**：腾讯原文（含 `view_address`、`download_address`、`meeting_summary` / `ai_meeting_transcripts` / 各类 `ai_*_minutes` 等，以上游实际返回为准）。
 
 ### 4.3 导入内容与摘要（对应当初 Q6～Q7，catalogue 路径）
@@ -129,7 +129,7 @@
 | Q4 | 仅用户基本信息可用；部门/职位不可用；93435 不可用 |
 | Q5 | 不可用 |
 | R1 | 可用；按腾讯源 `meeting_id` 缓存 `record_files`；只传 meeting_id；上游企业 AK/SK + open_id→userid |
-| R2 | 可用；按 `record_file_id` 透传 51180 原文，不缓存 |
+| R2 | 可用；按 `record_file_id` 透传 51180 原文，不缓存；上游企业 AK/SK + STS-Token |
 | Q6 / Q7 | 可用；依赖本地 `recording_id`，非腾讯会议 ID 直查 |
 
 AnythingLLM 应按上表做本地字段映射与调用编排：Q1 落会议 → Q2 落参会 → 按需 Q4 补昵称 → 需要录制清单时调 R1 → 取播放/下载/转写链时调 R2 → catalogue 导入仍可用 Q6/Q7。部门/职位保持 null，展示「未知」/ `--`。

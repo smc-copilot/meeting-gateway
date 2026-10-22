@@ -1,6 +1,6 @@
 # 企业自建应用 STS Token 回调
 
-腾讯会议「数据敏感」类接口要求请求头携带 `STS-Token`。meeting-gateway 按部署级 env 企业自建应用接收并存储该 Token，供服务内 `env_sts.current_token()` 读取。
+腾讯会议「数据敏感」类接口要求请求头携带 `STS-Token`。meeting-gateway 按部署级 env 企业自建应用接收并存储该 Token，供服务内 `env_sts.current_token()` 读取。当前消费方：R2 录制详情上游 `GET /v1/addresses/{record_file_id}`（见 [`record-files-oauth-mapping.md`](record-files-oauth-mapping.md)）。
 
 ## 企管后台配置
 

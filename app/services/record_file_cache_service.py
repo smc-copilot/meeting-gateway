@@ -47,6 +47,21 @@ def _as_bool(value) -> bool | None:
     return value if isinstance(value, bool) else None
 
 
+def _as_page_count(value) -> int | None:
+    """Normalize Tencent total_page; empty/missing treated as 0."""
+    if value is None or value == '':
+        return 0
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value >= 0 else None
+    if isinstance(value, float) and value.is_integer() and value >= 0:
+        return int(value)
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
+
+
 def map_record_file(row: dict) -> dict | None:
     file_id = _as_str_id(row.get('record_file_id'))
     if not file_id:
@@ -116,8 +131,15 @@ class RecordFileCacheService:
         if not file_id:
             raise MeetingError('INVALID_REQUEST', 422)
         p, c = await self._authorize_oauth(principal, connection_ref)
-        operator = await self.rt.connections.operator(c, member_id=p.member_id)
-        raw = await self.rt.tencent.call(c.id, 'record_detail', operator, file_id=file_id)
+        if self.rt.settings.tencent_enterprise_aksk() is None:
+            raise MeetingError('UPSTREAM_CREDENTIAL_INVALID', 409)
+        token = await self.rt.env_sts.current_token()
+        if token is None:
+            await self.rt.env_sts.refresh_due()
+            token = await self.rt.env_sts.current_token()
+        if token is None:
+            raise MeetingError('STS_NOT_READY', 409)
+        raw = await self.rt.tencent.record_detail_aksk(record_file_id=file_id, sts_token=token)
         if not isinstance(raw, dict):
             raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
         async with self.rt.db.transaction() as s:
@@ -241,13 +263,28 @@ class RecordFileCacheService:
                 'page_size': RECORDS_PAGE_SIZE,
             })
             if not isinstance(raw, dict):
+                logger.warning(
+                    'r1.record_files_failed meeting_id=%s step=records_aksk reason=UPSTREAM_CONTRACT_ERROR kind=not_object',
+                    meeting_id)
                 raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
             rows = raw.get('record_meetings')
-            total_page = raw.get('total_page')
-            if not isinstance(rows, list) or not isinstance(total_page, int):
+            if rows is None:
+                rows = []
+            total_page = _as_page_count(raw.get('total_page'))
+            if not isinstance(rows, list) or total_page is None:
+                logger.warning(
+                    'r1.record_files_failed meeting_id=%s step=records_aksk reason=UPSTREAM_CONTRACT_ERROR '
+                    'kind=page_shape rows_type=%s total_page=%r',
+                    meeting_id, type(rows).__name__, raw.get('total_page'))
                 raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
+            # No recordings: empty page is success (cache empty snapshot).
+            if total_page == 0 or (page == 1 and len(rows) == 0):
+                return files, meta
             for meeting in rows:
                 if not isinstance(meeting, dict):
+                    logger.warning(
+                        'r1.record_files_failed meeting_id=%s step=records_aksk reason=UPSTREAM_CONTRACT_ERROR kind=meeting_not_object',
+                        meeting_id)
                     raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
                 if meta['meeting_code'] is None and meeting.get('meeting_code') not in (None, ''):
                     meta['meeting_code'] = str(meeting.get('meeting_code'))[:64]
@@ -257,22 +294,36 @@ class RecordFileCacheService:
                     meta['meeting_record_id'] = str(meeting.get('meeting_record_id'))[:128]
                 if meta['state'] is None:
                     meta['state'] = _as_int(meeting.get('state'))
-                record_files = meeting.get('record_files') or []
+                record_files = meeting.get('record_files')
+                if record_files is None:
+                    record_files = []
                 if not isinstance(record_files, list):
+                    logger.warning(
+                        'r1.record_files_failed meeting_id=%s step=records_aksk reason=UPSTREAM_CONTRACT_ERROR kind=record_files_not_list',
+                        meeting_id)
                     raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
                 for row in record_files:
                     if not isinstance(row, dict):
+                        logger.warning(
+                            'r1.record_files_failed meeting_id=%s step=records_aksk reason=UPSTREAM_CONTRACT_ERROR kind=file_not_object',
+                            meeting_id)
                         raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
                     mapped = map_record_file(row)
                     if mapped is None:
+                        logger.warning(
+                            'r1.record_files_failed meeting_id=%s step=records_aksk reason=UPSTREAM_CONTRACT_ERROR kind=record_file_id_missing',
+                            meeting_id)
                         raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
                     if mapped['record_file_id'] in seen:
                         continue
                     seen.add(mapped['record_file_id'])
                     files.append(mapped)
-            if page >= total_page or total_page == 0:
+            if page >= total_page:
                 return files, meta
             page += 1
+        logger.warning(
+            'r1.record_files_failed meeting_id=%s step=records_aksk reason=UPSTREAM_CONTRACT_ERROR kind=page_limit',
+            meeting_id)
         raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
 
     async def _write_all(self, org_id, connection_id, meeting_id, files, meta):

@@ -274,6 +274,28 @@ class TencentClient:
         return await self._send(
             'GET', url, headers, raw, credential_channel=False, write=False, diag='records_aksk')
 
+    async def record_detail_aksk(self, *, record_file_id: str, sts_token: str, heartbeat=None):
+        if not isinstance(sts_token, str) or not sts_token or len(sts_token) > 16384:
+            raise MeetingError('INVALID_REQUEST', 422)
+        file_id = _external(record_file_id)
+        material = self._require_env_aksk()
+        params = {
+            'operator_id': material['operator_id'],
+            'operator_id_type': 1,
+        }
+        url = httpx.URL(API_ORIGIN + '/v1/addresses/' + file_id, params=params)
+        raw = b''
+        headers = self._env_aksk_headers('GET', url.raw_path.decode('ascii'), raw, material)
+        headers['STS-Token'] = sts_token
+        await self.rt.rate.acquire(
+            'tencent-env-aksk:' + material['corp_id'],
+            self.rt.settings.upstream_min_interval_seconds,
+            heartbeat=heartbeat,
+        )
+        self.rt.metrics['upstream_calls'] += 1
+        return await self._send(
+            'GET', url, headers, raw, credential_channel=False, write=False, diag='record_detail_aksk')
+
     async def sts_request(self, *, valid_hours: int, heartbeat=None):
         if valid_hours not in {6, 12, 24}:
             raise MeetingError('INVALID_REQUEST', 422)
