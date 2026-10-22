@@ -72,8 +72,10 @@ class TencentClient:
     def _upstream_log_prefix(diag):
         if diag in {'record_detail_aksk', 'sts_request'}:
             return 'r2'
-        if diag == 'participants_aksk':
+        if diag in {'participants_aksk', 'participants'}:
             return 'q2'
+        if diag in {'history', 'meeting', 'upcoming'}:
+            return 'q1'
         return 'r1'
 
     async def _send(self,method,url,headers,body,*,envelope=False,credential_channel=False,write=False,diag=None):
@@ -207,7 +209,12 @@ class TencentClient:
             headers.update({'AccessToken':token['access_token'],'OpenId':c.external_id})
         if not admitted:await self.admit(connection_id,operation,heartbeat=heartbeat)
         self.rt.metrics['upstream_calls']+=1
-        return await self._send(method,url,headers,raw,credential_channel=c.kind=='THIRD_PARTY_OAUTH',write=operation=='create')
+        return await self._send(
+            method, url, headers, raw,
+            credential_channel=c.kind == 'THIRD_PARTY_OAUTH',
+            write=operation == 'create',
+            diag=operation,
+        )
 
     def _require_env_aksk(self) -> dict[str, str]:
         material = self.rt.settings.tencent_enterprise_aksk()

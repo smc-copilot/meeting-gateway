@@ -1,4 +1,5 @@
 """Source lookup is separate from the local catalogue. A miss stores nothing about the meeting."""
+import logging
 from datetime import timedelta
 from sqlalchemy import select
 from app.core.errors import MeetingError, UpstreamError
@@ -8,6 +9,8 @@ from app.models import SyncJob
 from app.schemas.requests import MeetingQuery
 from app.services.audit_service import record
 from app.services.sync_service import windows
+
+logger = logging.getLogger(__name__)
 
 
 class QueryService:
@@ -44,14 +47,23 @@ class QueryService:
                 record(s, p, 'meeting.query.accepted', resource_id=job.id)
                 return {'accepted': True, 'job_id': job.id, 'selection': body.selection}
         operator = await self.rt.connections.operator(c, member_id=p.member_id)
-        if body.selection == 'USER_WINDOW':
-            items = []
-            for raw in await self._scan_history(c, operator, body):
-                item = self._project(c, raw, history=True)
-                if item:
-                    items.append(item)
-        else:
-            items = [await self._fetch_meeting(c, operator, body.meeting_id)]
+        try:
+            if body.selection == 'USER_WINDOW':
+                items = []
+                for raw in await self._scan_history(c, operator, body):
+                    item = self._project(c, raw, history=True)
+                    if item:
+                        items.append(item)
+            else:
+                items = [await self._fetch_meeting(c, operator, body.meeting_id)]
+        except MeetingError as exc:
+            logger.warning(
+                'q1.meeting_queries_failed connection_id=%s selection=%s step=upstream '
+                'reason=%s upstream_code=%s status=%s',
+                c.id, body.selection, exc.reason,
+                getattr(exc, 'upstream_code', '') or '',
+                exc.status)
+            raise
         async with self.rt.db.transaction() as s:
             record(s, p, 'meeting.query.listed', resource_id=c.id)
         return {'selection': body.selection, 'items': items, 'meeting_count': len(items)}
@@ -175,8 +187,16 @@ class QueryService:
                 items = payload.get('meeting_info_list') if isinstance(payload, dict) else None
                 total = payload.get('total_page') if isinstance(payload, dict) else None
                 if not isinstance(items, list) or not isinstance(total, int):
+                    logger.warning(
+                        'q1.meeting_queries_failed connection_id=%s selection=USER_WINDOW step=history '
+                        'reason=UPSTREAM_CONTRACT_ERROR kind=page_shape page=%s',
+                        connection.id, page)
                     raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
                 if not items and page < total:
+                    logger.warning(
+                        'q1.meeting_queries_failed connection_id=%s selection=USER_WINDOW step=history '
+                        'reason=UPSTREAM_CONTRACT_ERROR kind=empty_before_last page=%s total_page=%s',
+                        connection.id, page, total)
                     raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
                 for item in items:
                     if not isinstance(item, dict) or not item.get('meeting_id'):
