@@ -2,7 +2,12 @@
 from sqlalchemy import select
 from app.core.errors import MeetingError, UpstreamError
 from app.core.types import utcnow
-from app.models import MeetingRecordFileRow, MeetingRecordFileSnapshot
+from app.models import (
+    Connection,
+    MeetingOAuthUseridMap,
+    MeetingRecordFileRow,
+    MeetingRecordFileSnapshot,
+)
 from app.services.audit_service import record
 
 RECORDS_PAGE_SIZE = 20
@@ -79,9 +84,11 @@ class RecordFileCacheService:
             snapshot = await self._find_snapshot(p.org_id, c.id, meeting_id)
             source = 'cache'
             if snapshot is None:
-                operator = await self.rt.connections.operator(c, member_id=p.member_id)
+                if self.rt.settings.tencent_enterprise_aksk() is None:
+                    raise MeetingError('UPSTREAM_CREDENTIAL_INVALID', 409)
+                userid = await self._resolve_userid(c)
                 start_time, end_time = self._default_window()
-                files, meta = await self._fetch_all_pages(c, operator, meeting_id, start_time, end_time)
+                files, meta = await self._fetch_all_pages(userid, meeting_id, start_time, end_time)
                 snapshot = await self._write_all(p.org_id, c.id, meeting_id, files, meta)
                 source = 'fetched'
                 async with self.rt.db.transaction() as s:
@@ -130,7 +137,62 @@ class RecordFileCacheService:
             end = start + 60
         return start, end
 
-    async def _fetch_all_pages(self, connection, operator, meeting_id, start_time, end_time):
+    async def _resolve_userid(self, connection: Connection) -> str:
+        open_id = (connection.external_id or '').strip()
+        if not 1 <= len(open_id) <= 128:
+            raise MeetingError('IDENTITY_UNBOUND', 409)
+        org_id = connection.org_id
+        oauth_sdk_id = (self.rt.settings.tencent_meeting_app_id or '').strip()
+        lock_key = 'oauth-userid-map:' + org_id + ':' + open_id
+        async with self.rt.db.lock(lock_key):
+            async with self.rt.db.session() as s:
+                row = await s.scalar(select(MeetingOAuthUseridMap).where(
+                    MeetingOAuthUseridMap.org_id == org_id,
+                    MeetingOAuthUseridMap.open_id == open_id,
+                    MeetingOAuthUseridMap.deleted_at.is_(None)))
+                if row is not None and row.userid:
+                    return row.userid
+            raw = await self.rt.tencent.open_id_to_userid(open_id=open_id)
+            if not isinstance(raw, dict):
+                raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
+            invalid = raw.get('invalid_open_id_list') or []
+            if isinstance(invalid, list) and open_id in invalid:
+                raise MeetingError('IDENTITY_UNBOUND', 409)
+            userid = None
+            listed = raw.get('userid_list')
+            if isinstance(listed, list):
+                for item in listed:
+                    if not isinstance(item, dict):
+                        continue
+                    if str(item.get('open_id') or '') != open_id:
+                        continue
+                    candidate = _as_str_id(item.get('userid'))
+                    if candidate:
+                        userid = candidate
+                        break
+            if not userid:
+                raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
+            async with self.rt.db.transaction() as s:
+                existing = await s.scalar(select(MeetingOAuthUseridMap).where(
+                    MeetingOAuthUseridMap.org_id == org_id,
+                    MeetingOAuthUseridMap.open_id == open_id,
+                    MeetingOAuthUseridMap.deleted_at.is_(None)))
+                if existing is not None:
+                    existing.userid = userid
+                    existing.oauth_sdk_id = oauth_sdk_id
+                    existing.resolved_at = utcnow()
+                    existing.version += 1
+                else:
+                    s.add(MeetingOAuthUseridMap(
+                        org_id=org_id,
+                        open_id=open_id,
+                        userid=userid,
+                        oauth_sdk_id=oauth_sdk_id,
+                        resolved_at=utcnow(),
+                    ))
+            return userid
+
+    async def _fetch_all_pages(self, userid, meeting_id, start_time, end_time):
         files = []
         seen: set[str] = set()
         meta = {
@@ -141,8 +203,9 @@ class RecordFileCacheService:
         }
         page = 1
         for _ in range(RECORDS_MAX_PAGES):
-            raw = await self.rt.tencent.call(connection.id, 'records', operator, query={
+            raw = await self.rt.tencent.records_aksk(query={
                 'meeting_id': meeting_id,
+                'userid': userid,
                 'start_time': start_time,
                 'end_time': end_time,
                 'page': page,

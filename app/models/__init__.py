@@ -6,5 +6,6 @@ from app.models.operations import Operation, DownloadTicket, SyncJob, SyncPolicy
 from app.models.events import EventInbox, Subscription, EventOutbox, DeliveredResource, AuditLog, RateLimit, DownloadQuota
 from app.models.identity import IdentityDeployment, LocalMember, LoginObservation, IdentitySession, LegacyMemberMap
 from app.models.oauth_users import MeetingOAuthUser
+from app.models.oauth_userid_map import MeetingOAuthUseridMap
 from app.models.participant_cache import MeetingParticipantSnapshot, MeetingParticipantRow
 from app.models.record_file_cache import MeetingRecordFileSnapshot, MeetingRecordFileRow

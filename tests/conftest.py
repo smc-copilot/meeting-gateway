@@ -39,20 +39,32 @@ class FakeTencent:
         self.created = 0
     async def admit(self, connection_id, operation, *, heartbeat=None):
         return None
+    def _dispatch(self, operation, kwargs):
+        if self.error:
+            raise self.error
+        if callable(self.response):
+            return self.response(operation, kwargs)
+        return self.response.get(operation, {'meeting_info_list': [], 'remaining': 0, 'total_page': 0, 'record_meetings': []})
     async def call(self, connection_id, operation, operator, **kwargs):
         kwargs.pop('heartbeat', None)
         kwargs.pop('admitted', None)
         self.calls.append((connection_id, operation, operator, kwargs))
-        if self.error:
-            raise self.error
         if operation == 'create':
+            if self.error:
+                raise self.error
             self.created += 1
             body = kwargs['body']
             return {'meeting_info_list': [{'meeting_id': 'up-created-' + str(self.created), 'meeting_code':'123123123',
                 'subject': body['subject'], 'start_time': body['start_time'], 'end_time':body['end_time']}]}
-        if callable(self.response):
-            return self.response(operation, kwargs)
-        return self.response.get(operation, {'meeting_info_list': [], 'remaining': 0, 'total_page': 0, 'record_meetings': []})
+        return self._dispatch(operation, kwargs)
+    async def open_id_to_userid(self, *, open_id, heartbeat=None):
+        kwargs = {'open_id': open_id}
+        self.calls.append(('env-aksk', 'open_id_to_userid', None, kwargs))
+        return self._dispatch('open_id_to_userid', kwargs)
+    async def records_aksk(self, *, query, heartbeat=None):
+        kwargs = {'query': query}
+        self.calls.append(('env-aksk', 'records_aksk', None, kwargs))
+        return self._dispatch('records_aksk', kwargs)
     async def oauth(self, operation, payload):
         self.calls.append(('oauth',operation,payload))
         if self.error:

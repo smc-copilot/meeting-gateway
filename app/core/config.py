@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     tencent_meeting_corp_id: str = ""
     tencent_meeting_app_id: str = ""
     tencent_meeting_app_secret: SecretStr = SecretStr("")
+    tencent_meeting_app_secret_id: SecretStr = SecretStr("")
+    tencent_meeting_app_secret_key: SecretStr = SecretStr("")
+    tencent_meeting_app_sdk_id: str = ""
+    tencent_meeting_app_operator_id: str = ""
     tencent_meeting_allowed_open_corp_ids: list[str] = Field(default_factory=list)
     tencent_meeting_oauth_return_uris: list[str] = Field(default_factory=list)
     tencent_meeting_webhook_name: str = ""
@@ -114,6 +118,24 @@ class Settings(BaseSettings):
             and self.tencent_meeting_webhook_token.get_secret_value()
             and self.tencent_meeting_webhook_url
         )
+
+    def tencent_enterprise_aksk(self) -> dict[str, str] | None:
+        corp_id = (self.tencent_meeting_corp_id or "").strip()
+        secret_id = self.tencent_meeting_app_secret_id.get_secret_value().strip()
+        secret_key = self.tencent_meeting_app_secret_key.get_secret_value().strip()
+        sdk_id = (self.tencent_meeting_app_sdk_id or "").strip()
+        operator_id = (self.tencent_meeting_app_operator_id or "").strip()
+        if not (corp_id and secret_id and secret_key and sdk_id and operator_id):
+            return None
+        if not (1 <= len(operator_id) <= 128 and 1 <= len(sdk_id) <= 128 and 1 <= len(corp_id) <= 64):
+            return None
+        return {
+            "corp_id": corp_id,
+            "secret_id": secret_id,
+            "secret_key": secret_key,
+            "sdk_id": sdk_id,
+            "operator_id": operator_id,
+        }
 
     def _check_tencent_webhook(self):
         from app.integrations.tencent_meeting.webhook import _key

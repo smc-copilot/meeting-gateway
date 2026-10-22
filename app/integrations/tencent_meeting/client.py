@@ -177,3 +177,75 @@ class TencentClient:
         if not admitted:await self.admit(connection_id,operation,heartbeat=heartbeat)
         self.rt.metrics['upstream_calls']+=1
         return await self._send(method,url,headers,raw,credential_channel=c.kind=='THIRD_PARTY_OAUTH',write=operation=='create')
+
+    def _require_env_aksk(self) -> dict[str, str]:
+        material = self.rt.settings.tencent_enterprise_aksk()
+        if material is None:
+            raise MeetingError('UPSTREAM_CREDENTIAL_INVALID', 409)
+        return material
+
+    def _env_aksk_headers(self, method: str, uri: str, body: bytes, material: dict[str, str]) -> dict[str, str]:
+        nonce = str(secrets.randbelow(2**31 - 1) + 1)
+        timestamp = str(int(time.time()))
+        return {
+            'Content-Type': 'application/json',
+            'X-TC-Key': material['secret_id'],
+            'X-TC-Timestamp': timestamp,
+            'X-TC-Nonce': nonce,
+            'X-TC-Registered': '1',
+            'AppId': material['corp_id'],
+            'SdkId': material['sdk_id'],
+            'X-TC-Signature': sign_request(
+                material['secret_id'], material['secret_key'], method, uri, body, nonce, timestamp),
+        }
+
+    async def open_id_to_userid(self, *, open_id: str, heartbeat=None):
+        if not isinstance(open_id, str) or not 1 <= len(open_id) <= 128:
+            raise MeetingError('INVALID_REQUEST', 422)
+        oauth_sdk_id = (self.rt.settings.tencent_meeting_app_id or '').strip()
+        if not 1 <= len(oauth_sdk_id) <= 128:
+            raise MeetingError('UPSTREAM_CREDENTIAL_INVALID', 409)
+        material = self._require_env_aksk()
+        body = {
+            'open_id_list': [open_id],
+            'sdkid': oauth_sdk_id,
+            'operator_id': material['operator_id'],
+            'operator_id_type': 1,
+        }
+        raw = canonical(body)
+        url = httpx.URL(API_ORIGIN + '/v1/users/open-id-to-userid')
+        headers = self._env_aksk_headers('POST', url.raw_path.decode('ascii'), raw, material)
+        await self.rt.rate.acquire(
+            'tencent-env-aksk:' + material['corp_id'],
+            self.rt.settings.upstream_min_interval_seconds,
+            heartbeat=heartbeat,
+        )
+        self.rt.metrics['upstream_calls'] += 1
+        return await self._send('POST', url, headers, raw, credential_channel=False, write=False)
+
+    async def records_aksk(self, *, query: dict, heartbeat=None):
+        material = self._require_env_aksk()
+        allowed = {'start_time', 'end_time', 'page', 'page_size', 'meeting_id', 'userid'}
+        params = dict(query or {})
+        if set(params) - allowed:
+            raise MeetingError('INVALID_REQUEST', 422)
+        for key in ('start_time', 'end_time', 'page', 'page_size', 'meeting_id', 'userid'):
+            if key not in params:
+                raise MeetingError('INVALID_REQUEST', 422)
+        userid = params['userid']
+        if not isinstance(userid, str) or not 1 <= len(userid) <= 128:
+            raise MeetingError('INVALID_REQUEST', 422)
+        params.update({
+            'operator_id': material['operator_id'],
+            'operator_id_type': 1,
+        })
+        url = httpx.URL(API_ORIGIN + '/v1/records', params=params)
+        raw = b''
+        headers = self._env_aksk_headers('GET', url.raw_path.decode('ascii'), raw, material)
+        await self.rt.rate.acquire(
+            'tencent-env-aksk:' + material['corp_id'],
+            self.rt.settings.upstream_min_interval_seconds,
+            heartbeat=heartbeat,
+        )
+        self.rt.metrics['upstream_calls'] += 1
+        return await self._send('GET', url, headers, raw, credential_channel=False, write=False)
