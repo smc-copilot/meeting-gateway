@@ -4,6 +4,7 @@ Upstream contracts are recorded in docs/upstream-contracts.md. Requests are neve
 retried here, especially POST /meetings: a network timeout may already have created it.
 """
 import json
+import logging
 import secrets
 import time
 from urllib.parse import quote
@@ -14,6 +15,8 @@ from app.core.security import canonical
 from app.core.types import Operator
 from app.models import Connection, Application, IdentityBinding
 from app.integrations.tencent_meeting.signing import sign_request
+
+logger = logging.getLogger(__name__)
 
 API_ORIGIN='https://api.meeting.qq.com'
 OAUTH_ORIGIN='https://meeting.tencent.com/wemeet-webapi/v2/oauth2/oauth/'
@@ -65,28 +68,47 @@ class TencentClient:
             raise UpstreamError(reason,upstream_code=code,budgeted=False)
         raise UpstreamError('UPSTREAM_UNAVAILABLE',upstream_code=code,uncertain=write and code in {'41','960000'})
 
-    async def _send(self,method,url,headers,body,*,envelope=False,credential_channel=False,write=False):
+    async def _send(self,method,url,headers,body,*,envelope=False,credential_channel=False,write=False,diag=None):
         try:
             async with self.rt.upstream_http.stream(method,url,headers=headers,content=body) as response:
-                if 300<=response.status_code<400:raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write)
+                if 300<=response.status_code<400:
+                    if diag:
+                        logger.warning('r1.upstream_failed op=%s http_status=%s kind=redirect', diag, response.status_code)
+                    raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write)
                 data=bytearray()
                 async for chunk in response.aiter_bytes():
                     data.extend(chunk)
                     if len(data)>self.rt.settings.max_upstream_json_bytes:
+                        if diag:
+                            logger.warning('r1.upstream_failed op=%s http_status=%s kind=body_too_large', diag, response.status_code)
                         raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write)
                 try:result=json.loads(data)
-                except (ValueError,UnicodeError) as exc:raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write) from exc
-                if not isinstance(result,dict):raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write)
+                except (ValueError,UnicodeError) as exc:
+                    if diag:
+                        logger.warning('r1.upstream_failed op=%s http_status=%s kind=json_invalid', diag, response.status_code)
+                    raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write) from exc
+                if not isinstance(result,dict):
+                    if diag:
+                        logger.warning('r1.upstream_failed op=%s http_status=%s kind=not_object', diag, response.status_code)
+                    raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write)
                 error=result.get('error_info')
                 error=error if isinstance(error,dict) else {}
                 code=str(error.get('error_code',result.get('code',0)))
                 if response.status_code>=400 or code not in {'0','None',''}:
+                    if diag:
+                        logger.warning(
+                            'r1.upstream_failed op=%s http_status=%s upstream_code=%s',
+                            diag, response.status_code, code)
                     self._raise_upstream(code,response.status_code,credential_channel=credential_channel,write=write)
                 if envelope:
                     if not isinstance(result.get('data'),dict):raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
                     return result['data']
                 return result
+        except UpstreamError:
+            raise
         except (httpx.TimeoutException,httpx.NetworkError,httpx.RemoteProtocolError) as exc:
+            if diag:
+                logger.warning('r1.upstream_failed op=%s kind=network err=%s', diag, type(exc).__name__)
             raise UpstreamError('UPSTREAM_UNAVAILABLE',uncertain=write) from exc
 
     async def oauth(self,operation,payload):
@@ -221,7 +243,8 @@ class TencentClient:
             heartbeat=heartbeat,
         )
         self.rt.metrics['upstream_calls'] += 1
-        return await self._send('POST', url, headers, raw, credential_channel=False, write=False)
+        return await self._send(
+            'POST', url, headers, raw, credential_channel=False, write=False, diag='open_id_to_userid')
 
     async def records_aksk(self, *, query: dict, heartbeat=None):
         material = self._require_env_aksk()
@@ -248,4 +271,5 @@ class TencentClient:
             heartbeat=heartbeat,
         )
         self.rt.metrics['upstream_calls'] += 1
-        return await self._send('GET', url, headers, raw, credential_channel=False, write=False)
+        return await self._send(
+            'GET', url, headers, raw, credential_channel=False, write=False, diag='records_aksk')

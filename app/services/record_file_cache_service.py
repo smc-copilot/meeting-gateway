@@ -1,4 +1,5 @@
 """Local-first meeting record-file list cache (Tencent 51189) + detail passthrough (51180)."""
+import logging
 from sqlalchemy import select
 from app.core.errors import MeetingError, UpstreamError
 from app.core.types import utcnow
@@ -9,6 +10,8 @@ from app.models import (
     MeetingRecordFileSnapshot,
 )
 from app.services.audit_service import record
+
+logger = logging.getLogger(__name__)
 
 RECORDS_PAGE_SIZE = 20
 RECORDS_MAX_PAGES = 100
@@ -85,10 +88,21 @@ class RecordFileCacheService:
             source = 'cache'
             if snapshot is None:
                 if self.rt.settings.tencent_enterprise_aksk() is None:
+                    logger.warning(
+                        'r1.record_files_failed connection_id=%s meeting_id=%s step=env_aksk reason=UPSTREAM_CREDENTIAL_INVALID',
+                        c.id, meeting_id)
                     raise MeetingError('UPSTREAM_CREDENTIAL_INVALID', 409)
-                userid = await self._resolve_userid(c)
-                start_time, end_time = self._default_window()
-                files, meta = await self._fetch_all_pages(userid, meeting_id, start_time, end_time)
+                try:
+                    userid = await self._resolve_userid(c)
+                    start_time, end_time = self._default_window()
+                    files, meta = await self._fetch_all_pages(userid, meeting_id, start_time, end_time)
+                except MeetingError as exc:
+                    logger.warning(
+                        'r1.record_files_failed connection_id=%s meeting_id=%s reason=%s upstream_code=%s status=%s',
+                        c.id, meeting_id, exc.reason,
+                        getattr(exc, 'upstream_code', '') or '',
+                        exc.status)
+                    raise
                 snapshot = await self._write_all(p.org_id, c.id, meeting_id, files, meta)
                 source = 'fetched'
                 async with self.rt.db.transaction() as s:
@@ -152,11 +166,23 @@ class RecordFileCacheService:
                     MeetingOAuthUseridMap.deleted_at.is_(None)))
                 if row is not None and row.userid:
                     return row.userid
-            raw = await self.rt.tencent.open_id_to_userid(open_id=open_id)
+            try:
+                raw = await self.rt.tencent.open_id_to_userid(open_id=open_id)
+            except MeetingError as exc:
+                logger.warning(
+                    'r1.record_files_failed connection_id=%s step=open_id_to_userid reason=%s upstream_code=%s',
+                    connection.id, exc.reason, getattr(exc, 'upstream_code', '') or '')
+                raise
             if not isinstance(raw, dict):
+                logger.warning(
+                    'r1.record_files_failed connection_id=%s step=open_id_to_userid reason=UPSTREAM_CONTRACT_ERROR kind=not_object',
+                    connection.id)
                 raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
             invalid = raw.get('invalid_open_id_list') or []
             if isinstance(invalid, list) and open_id in invalid:
+                logger.warning(
+                    'r1.record_files_failed connection_id=%s step=open_id_to_userid reason=IDENTITY_UNBOUND kind=invalid_open_id',
+                    connection.id)
                 raise MeetingError('IDENTITY_UNBOUND', 409)
             userid = None
             listed = raw.get('userid_list')
@@ -171,6 +197,9 @@ class RecordFileCacheService:
                         userid = candidate
                         break
             if not userid:
+                logger.warning(
+                    'r1.record_files_failed connection_id=%s step=open_id_to_userid reason=UPSTREAM_CONTRACT_ERROR kind=userid_missing',
+                    connection.id)
                 raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
             async with self.rt.db.transaction() as s:
                 existing = await s.scalar(select(MeetingOAuthUseridMap).where(
