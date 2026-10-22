@@ -132,15 +132,32 @@ class RecordFileCacheService:
             raise MeetingError('INVALID_REQUEST', 422)
         p, c = await self._authorize_oauth(principal, connection_ref)
         if self.rt.settings.tencent_enterprise_aksk() is None:
+            logger.warning(
+                'r2.record_file_detail_failed connection_id=%s record_file_id=%s step=env_aksk reason=UPSTREAM_CREDENTIAL_INVALID',
+                c.id, file_id)
             raise MeetingError('UPSTREAM_CREDENTIAL_INVALID', 409)
         token = await self.rt.env_sts.current_token()
         if token is None:
             await self.rt.env_sts.refresh_due()
             token = await self.rt.env_sts.current_token()
         if token is None:
+            logger.warning(
+                'r2.record_file_detail_failed connection_id=%s record_file_id=%s step=sts_token reason=STS_NOT_READY',
+                c.id, file_id)
             raise MeetingError('STS_NOT_READY', 409)
-        raw = await self.rt.tencent.record_detail_aksk(record_file_id=file_id, sts_token=token)
+        try:
+            raw = await self.rt.tencent.record_detail_aksk(record_file_id=file_id, sts_token=token)
+        except MeetingError as exc:
+            logger.warning(
+                'r2.record_file_detail_failed connection_id=%s record_file_id=%s step=record_detail_aksk '
+                'reason=%s upstream_code=%s status=%s',
+                c.id, file_id, exc.reason, getattr(exc, 'upstream_code', '') or '', exc.status)
+            raise
         if not isinstance(raw, dict):
+            logger.warning(
+                'r2.record_file_detail_failed connection_id=%s record_file_id=%s step=record_detail_aksk '
+                'reason=UPSTREAM_CONTRACT_ERROR kind=not_object',
+                c.id, file_id)
             raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
         async with self.rt.db.transaction() as s:
             record(s, p, 'meeting.record_file.detail', resource_id=c.id)

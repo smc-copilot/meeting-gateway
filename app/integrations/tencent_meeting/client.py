@@ -68,28 +68,35 @@ class TencentClient:
             raise UpstreamError(reason,upstream_code=code,budgeted=False)
         raise UpstreamError('UPSTREAM_UNAVAILABLE',upstream_code=code,uncertain=write and code in {'41','960000'})
 
+    @staticmethod
+    def _upstream_log_prefix(diag):
+        if diag in {'record_detail_aksk', 'sts_request'}:
+            return 'r2'
+        return 'r1'
+
     async def _send(self,method,url,headers,body,*,envelope=False,credential_channel=False,write=False,diag=None):
+        prefix = self._upstream_log_prefix(diag)
         try:
             async with self.rt.upstream_http.stream(method,url,headers=headers,content=body) as response:
                 if 300<=response.status_code<400:
                     if diag:
-                        logger.warning('r1.upstream_failed op=%s http_status=%s kind=redirect', diag, response.status_code)
+                        logger.warning('%s.upstream_failed op=%s http_status=%s kind=redirect', prefix, diag, response.status_code)
                     raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write)
                 data=bytearray()
                 async for chunk in response.aiter_bytes():
                     data.extend(chunk)
                     if len(data)>self.rt.settings.max_upstream_json_bytes:
                         if diag:
-                            logger.warning('r1.upstream_failed op=%s http_status=%s kind=body_too_large', diag, response.status_code)
+                            logger.warning('%s.upstream_failed op=%s http_status=%s kind=body_too_large', prefix, diag, response.status_code)
                         raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write)
                 try:result=json.loads(data)
                 except (ValueError,UnicodeError) as exc:
                     if diag:
-                        logger.warning('r1.upstream_failed op=%s http_status=%s kind=json_invalid', diag, response.status_code)
+                        logger.warning('%s.upstream_failed op=%s http_status=%s kind=json_invalid', prefix, diag, response.status_code)
                     raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write) from exc
                 if not isinstance(result,dict):
                     if diag:
-                        logger.warning('r1.upstream_failed op=%s http_status=%s kind=not_object', diag, response.status_code)
+                        logger.warning('%s.upstream_failed op=%s http_status=%s kind=not_object', prefix, diag, response.status_code)
                     raise UpstreamError('UPSTREAM_CONTRACT_ERROR',uncertain=write)
                 error=result.get('error_info')
                 error=error if isinstance(error,dict) else {}
@@ -97,8 +104,8 @@ class TencentClient:
                 if response.status_code>=400 or code not in {'0','None',''}:
                     if diag:
                         logger.warning(
-                            'r1.upstream_failed op=%s http_status=%s upstream_code=%s',
-                            diag, response.status_code, code)
+                            '%s.upstream_failed op=%s http_status=%s upstream_code=%s',
+                            prefix, diag, response.status_code, code)
                     self._raise_upstream(code,response.status_code,credential_channel=credential_channel,write=write)
                 if envelope:
                     if not isinstance(result.get('data'),dict):raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
@@ -108,7 +115,7 @@ class TencentClient:
             raise
         except (httpx.TimeoutException,httpx.NetworkError,httpx.RemoteProtocolError) as exc:
             if diag:
-                logger.warning('r1.upstream_failed op=%s kind=network err=%s', diag, type(exc).__name__)
+                logger.warning('%s.upstream_failed op=%s kind=network err=%s', prefix, diag, type(exc).__name__)
             raise UpstreamError('UPSTREAM_UNAVAILABLE',uncertain=write) from exc
 
     async def oauth(self,operation,payload):
