@@ -200,3 +200,43 @@ async def test_refresh_due_skips_without_credentials(rt):
     rt.settings.tencent_meeting_app_webhook_token = SecretStr('')
     await rt.env_sts.refresh_due()
     assert [c for c in rt.tencent.calls if c[1] == 'sts_request'] == []
+
+
+async def test_public_env_sts_token_returns_plaintext(rt):
+    enable_env_aksk(rt)
+    arm_app_webhook(rt)
+    expire_ts = int((utcnow() + timedelta(hours=6)).timestamp())
+    data, headers = signed_callback({
+        'event': 'common.sts-token',
+        'payload': [{
+            'operator': {'userid': 'operator-userid'},
+            'token_info': {
+                'req_id': 'req-public',
+                'sts_token': 'public-plain-sts',
+                'expire_ts': expire_ts,
+            },
+        }],
+    })
+    await rt.env_sts.receive(data, headers)
+    async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=create_app(runtime=rt)),
+            base_url='https://meeting.example.org') as http:
+        response = await http.get('/env-sts/token')
+        assert response.status_code == 200
+        body = response.json()
+        assert body['code'] == 0
+        assert body['data']['sts_token'] == 'public-plain-sts'
+        assert body['data']['req_id'] == 'req-public'
+
+
+async def test_public_env_sts_token_not_ready_triggers_refresh(rt):
+    enable_env_aksk(rt)
+    arm_app_webhook(rt)
+    rt._provider.response = {'sts_request': {'req_id': 'req-public-wait'}}
+    async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=create_app(runtime=rt)),
+            base_url='https://meeting.example.org') as http:
+        response = await http.get('/env-sts/token')
+        assert response.status_code == 409
+        assert response.json()['reason'] == 'STS_NOT_READY'
+    assert any(call[1] == 'sts_request' for call in rt.tencent.calls)

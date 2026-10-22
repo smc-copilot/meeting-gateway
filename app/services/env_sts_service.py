@@ -112,9 +112,9 @@ class EnvStsService:
                     row.operator_id = op
                 row.version += 1
 
-    async def current_token(self):
+    async def _active_row(self):
         async with self.rt.db.session() as s:
-            row = await s.scalar(
+            return await s.scalar(
                 select(MeetingEnvStsToken).where(
                     MeetingEnvStsToken.state == 'ACTIVE',
                     MeetingEnvStsToken.deleted_at.is_(None),
@@ -122,9 +122,33 @@ class EnvStsService:
                     MeetingEnvStsToken.expires_at > utcnow() + timedelta(seconds=30),
                     MeetingEnvStsToken.token_ciphertext.is_not(None),
                 ).order_by(MeetingEnvStsToken.expires_at.desc()).limit(1))
-            if row is None:
-                return None
-            return self.rt.keys.decrypt(row.token_ciphertext, f'env-sts:{row.req_id}')
+
+    async def current_token(self):
+        row = await self._active_row()
+        if row is None:
+            return None
+        return self.rt.keys.decrypt(row.token_ciphertext, f'env-sts:{row.req_id}')
+
+    async def fetch_public_token(self):
+        """Unauthenticated operator path: return plaintext STS or trigger refresh then 409."""
+        if self.rt.settings.tencent_enterprise_aksk() is None:
+            raise MeetingError('UPSTREAM_CREDENTIAL_INVALID', 409)
+        if not self.rt.settings.tencent_app_webhook_complete():
+            raise MeetingError('RESOURCE_NOT_ACCESSIBLE', 404)
+        row = await self._active_row()
+        if row is None:
+            await self.refresh_due()
+            row = await self._active_row()
+        if row is None:
+            raise MeetingError('STS_NOT_READY', 409)
+        token = self.rt.keys.decrypt(row.token_ciphertext, f'env-sts:{row.req_id}')
+        return {
+            'sts_token': token,
+            'req_id': row.req_id,
+            'expires_at': row.expires_at.isoformat() if row.expires_at else None,
+            'valid_hours': row.valid_hours,
+            'operator_id': row.operator_id or '',
+        }
 
     async def refresh_due(self):
         if self.rt.settings.tencent_enterprise_aksk() is None:

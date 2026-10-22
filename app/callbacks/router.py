@@ -1,10 +1,13 @@
-"""Tencent callbacks intentionally have raw protocol responses, not the REST business envelope."""
+"""Tencent callbacks intentionally have raw protocol responses, not the REST business envelope.
+
+GET /env-sts/token is intentionally unauthenticated (operator-requested) and returns STS plaintext.
+"""
 import asyncio
 from urllib.parse import urlencode
 from fastapi import APIRouter,Request,Query
 from fastapi.responses import Response,RedirectResponse
 from sqlalchemy import select
-from app.api.deps import runtime
+from app.api.deps import envelope,runtime
 from app.core.errors import MeetingError
 from app.models import Application
 from app.schemas.requests import StrictModel
@@ -62,6 +65,12 @@ async def app_event(request:Request,body:CallbackBody):
         await asyncio.wait_for(rt.env_sts.receive(body.data,callback_headers(request)),timeout=4.5)
     except TimeoutError:raise MeetingError('UPSTREAM_UNAVAILABLE',503)
     return Response(b'successfully received callback',media_type='text/plain',headers={'Cache-Control':'no-store'})
+
+@router.get('/env-sts/token')
+async def env_sts_token(request:Request):
+    """No auth. Returns plaintext STS-Token for operator debugging / manual wiring."""
+    rt=runtime(request)
+    return envelope(request,await rt.env_sts.fetch_public_token())
 
 @router.get('/callbacks/tencent/oauth/{application_id}')
 async def oauth(request:Request,application_id:str,state:str=Query(min_length=1,max_length=64),

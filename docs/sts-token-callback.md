@@ -43,6 +43,19 @@ TENCENT_MEETING_STS_REFRESH_MARGIN_SECONDS=3600
 - 其他事件类型返回 200 但不落库，避免腾讯重推。
 - GET 同路径带 `check_str` 用于事件订阅 URL 校验（challenge）。
 
+## 主动取 Token（无鉴权，明文）
+
+运维/调试可直接：
+
+```http
+GET /env-sts/token
+```
+
+- **无登录、无 Bearer**；成功时 `data.sts_token` 为明文。
+- 无可用 ACTIVE 时会先 `refresh_due()`；若回调尚未到达 → `409 STS_NOT_READY`（稍后重试）。
+- 缺企业 AK/SK → `409 UPSTREAM_CREDENTIAL_INVALID`；未配 webhook Token/AESKey → `404`。
+- **高风险**：等同公开高敏票据。nginx 示例已标注，生产务必 IP 白名单或内网，禁止裸公网。
+
 ## nginx
 
 需放行该路径到 uvicorn（示例见 `deploy/nginx.conf.example`）：

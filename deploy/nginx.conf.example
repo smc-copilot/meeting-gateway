@@ -66,4 +66,14 @@ server {
         proxy_set_header X-Forwarded-Proto https;
         proxy_read_timeout 10s;
     }
+    # DANGER: unauthenticated plaintext STS. Prefer IP allowlist; do not expose to the public Internet.
+    location = /env-sts/token {
+        # allow 10.0.0.0/8;
+        # deny all;
+        access_log /var/log/nginx/meeting-callback.log meeting_callback;
+        proxy_pass http://127.0.0.1:4522;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 30s;
+    }
 }
