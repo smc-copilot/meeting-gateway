@@ -1,4 +1,5 @@
-"""Local-first meeting participants cache backed by Tencent 42701."""
+"""Local-first meeting participants cache backed by Tencent 42701 (env AK/SK)."""
+import logging
 from sqlalchemy import select
 from app.core.errors import MeetingError, UpstreamError
 from app.core.types import utcnow
@@ -8,6 +9,9 @@ from app.integrations.tencent_meeting.mapper import (
 )
 from app.models import MeetingParticipantRow, MeetingParticipantSnapshot
 from app.services.audit_service import record
+from app.services.oauth_userid_map_service import OAuthUseridMapService
+
+logger = logging.getLogger(__name__)
 
 
 class ParticipantCacheService:
@@ -34,8 +38,21 @@ class ParticipantCacheService:
             snapshot = await self._find_snapshot(p.org_id, c.id, meeting_id)
             source = 'cache'
             if snapshot is None:
-                operator = await self.rt.connections.operator(c, member_id=p.member_id)
-                pages, meta = await self._fetch_all_pages(c, operator, meeting_id)
+                if self.rt.settings.tencent_enterprise_aksk() is None:
+                    logger.warning(
+                        'q2.participants_failed connection_id=%s meeting_id=%s step=env_aksk reason=UPSTREAM_CREDENTIAL_INVALID',
+                        c.id, meeting_id)
+                    raise MeetingError('UPSTREAM_CREDENTIAL_INVALID', 409)
+                try:
+                    userid = await OAuthUseridMapService(self.rt).resolve_userid(c, log_prefix='q2')
+                    pages, meta = await self._fetch_all_pages(userid, meeting_id)
+                except MeetingError as exc:
+                    logger.warning(
+                        'q2.participants_failed connection_id=%s meeting_id=%s reason=%s upstream_code=%s status=%s',
+                        c.id, meeting_id, exc.reason,
+                        getattr(exc, 'upstream_code', '') or '',
+                        exc.status)
+                    raise
                 rows = self._dedupe_rows(pages)
                 snapshot = await self._write_all(p.org_id, c.id, meeting_id, rows, meta)
                 source = 'fetched'
@@ -53,14 +70,15 @@ class ParticipantCacheService:
                 MeetingParticipantSnapshot.external_meeting_id == meeting_id,
                 MeetingParticipantSnapshot.deleted_at.is_(None)))
 
-    async def _fetch_all_pages(self, connection, operator, meeting_id):
+    async def _fetch_all_pages(self, userid, meeting_id):
         pages = []
         pos = 0
         people = 0
         meta = {'meeting_code': None, 'subject': None, 'total_count': None}
         for _ in range(PARTICIPANTS_MAX_PAGES):
-            page = await self.rt.tencent.call(
-                connection.id, 'participants', operator, file_id=meeting_id,
+            page = await self.rt.tencent.participants_aksk(
+                meeting_id=meeting_id,
+                userid=userid,
                 query={'pos': pos, 'size': PARTICIPANTS_PAGE_SIZE})
             if not isinstance(page, dict):
                 raise UpstreamError('UPSTREAM_CONTRACT_ERROR')

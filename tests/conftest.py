@@ -65,6 +65,10 @@ class FakeTencent:
         kwargs = {'query': query}
         self.calls.append(('env-aksk', 'records_aksk', None, kwargs))
         return self._dispatch('records_aksk', kwargs)
+    async def participants_aksk(self, *, meeting_id, userid, query=None, heartbeat=None):
+        kwargs = {'meeting_id': meeting_id, 'userid': userid, 'query': query or {}}
+        self.calls.append(('env-aksk', 'participants_aksk', None, kwargs))
+        return self._dispatch('participants_aksk', kwargs)
     async def sts_request(self, *, valid_hours, heartbeat=None):
         kwargs = {'valid_hours': valid_hours}
         self.calls.append(('env-aksk', 'sts_request', None, kwargs))

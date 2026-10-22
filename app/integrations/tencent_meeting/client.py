@@ -72,6 +72,8 @@ class TencentClient:
     def _upstream_log_prefix(diag):
         if diag in {'record_detail_aksk', 'sts_request'}:
             return 'r2'
+        if diag == 'participants_aksk':
+            return 'q2'
         return 'r1'
 
     async def _send(self,method,url,headers,body,*,envelope=False,credential_channel=False,write=False,diag=None):
@@ -280,6 +282,28 @@ class TencentClient:
         self.rt.metrics['upstream_calls'] += 1
         return await self._send(
             'GET', url, headers, raw, credential_channel=False, write=False, diag='records_aksk')
+
+    async def participants_aksk(self, *, meeting_id: str, userid: str, query: dict | None = None, heartbeat=None):
+        material = self._require_env_aksk()
+        if not isinstance(userid, str) or not 1 <= len(userid) <= 128:
+            raise MeetingError('INVALID_REQUEST', 422)
+        allowed = {'pos', 'size', 'sub_meeting_id', 'start_time', 'end_time'}
+        params = dict(query or {})
+        if set(params) - allowed:
+            raise MeetingError('INVALID_REQUEST', 422)
+        params['userid'] = userid
+        url = httpx.URL(
+            API_ORIGIN + '/v1/meetings/' + _external(meeting_id) + '/participants', params=params)
+        raw = b''
+        headers = self._env_aksk_headers('GET', url.raw_path.decode('ascii'), raw, material)
+        await self.rt.rate.acquire(
+            'tencent-env-aksk:' + material['corp_id'],
+            self.rt.settings.upstream_min_interval_seconds,
+            heartbeat=heartbeat,
+        )
+        self.rt.metrics['upstream_calls'] += 1
+        return await self._send(
+            'GET', url, headers, raw, credential_channel=False, write=False, diag='participants_aksk')
 
     async def record_detail_aksk(self, *, record_file_id: str, sts_token: str, heartbeat=None):
         if not isinstance(sts_token, str) or not sts_token or len(sts_token) > 16384:

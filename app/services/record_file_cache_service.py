@@ -4,12 +4,11 @@ from sqlalchemy import select
 from app.core.errors import MeetingError, UpstreamError
 from app.core.types import utcnow
 from app.models import (
-    Connection,
-    MeetingOAuthUseridMap,
     MeetingRecordFileRow,
     MeetingRecordFileSnapshot,
 )
 from app.services.audit_service import record
+from app.services.oauth_userid_map_service import OAuthUseridMapService
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +107,7 @@ class RecordFileCacheService:
                         c.id, meeting_id)
                     raise MeetingError('UPSTREAM_CREDENTIAL_INVALID', 409)
                 try:
-                    userid = await self._resolve_userid(c)
+                    userid = await OAuthUseridMapService(self.rt).resolve_userid(c, log_prefix='r1')
                     start_time, end_time = self._default_window()
                     files, meta = await self._fetch_all_pages(userid, meeting_id, start_time, end_time)
                 except MeetingError as exc:
@@ -189,76 +188,6 @@ class RecordFileCacheService:
         if end <= start:
             end = start + 60
         return start, end
-
-    async def _resolve_userid(self, connection: Connection) -> str:
-        open_id = (connection.external_id or '').strip()
-        if not 1 <= len(open_id) <= 128:
-            raise MeetingError('IDENTITY_UNBOUND', 409)
-        org_id = connection.org_id
-        oauth_sdk_id = (self.rt.settings.tencent_meeting_app_id or '').strip()
-        lock_key = 'oauth-userid-map:' + org_id + ':' + open_id
-        async with self.rt.db.lock(lock_key):
-            async with self.rt.db.session() as s:
-                row = await s.scalar(select(MeetingOAuthUseridMap).where(
-                    MeetingOAuthUseridMap.org_id == org_id,
-                    MeetingOAuthUseridMap.open_id == open_id,
-                    MeetingOAuthUseridMap.deleted_at.is_(None)))
-                if row is not None and row.userid:
-                    return row.userid
-            try:
-                raw = await self.rt.tencent.open_id_to_userid(open_id=open_id)
-            except MeetingError as exc:
-                logger.warning(
-                    'r1.record_files_failed connection_id=%s step=open_id_to_userid reason=%s upstream_code=%s',
-                    connection.id, exc.reason, getattr(exc, 'upstream_code', '') or '')
-                raise
-            if not isinstance(raw, dict):
-                logger.warning(
-                    'r1.record_files_failed connection_id=%s step=open_id_to_userid reason=UPSTREAM_CONTRACT_ERROR kind=not_object',
-                    connection.id)
-                raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
-            invalid = raw.get('invalid_open_id_list') or []
-            if isinstance(invalid, list) and open_id in invalid:
-                logger.warning(
-                    'r1.record_files_failed connection_id=%s step=open_id_to_userid reason=IDENTITY_UNBOUND kind=invalid_open_id',
-                    connection.id)
-                raise MeetingError('IDENTITY_UNBOUND', 409)
-            userid = None
-            listed = raw.get('userid_list')
-            if isinstance(listed, list):
-                for item in listed:
-                    if not isinstance(item, dict):
-                        continue
-                    if str(item.get('open_id') or '') != open_id:
-                        continue
-                    candidate = _as_str_id(item.get('userid'))
-                    if candidate:
-                        userid = candidate
-                        break
-            if not userid:
-                logger.warning(
-                    'r1.record_files_failed connection_id=%s step=open_id_to_userid reason=UPSTREAM_CONTRACT_ERROR kind=userid_missing',
-                    connection.id)
-                raise UpstreamError('UPSTREAM_CONTRACT_ERROR')
-            async with self.rt.db.transaction() as s:
-                existing = await s.scalar(select(MeetingOAuthUseridMap).where(
-                    MeetingOAuthUseridMap.org_id == org_id,
-                    MeetingOAuthUseridMap.open_id == open_id,
-                    MeetingOAuthUseridMap.deleted_at.is_(None)))
-                if existing is not None:
-                    existing.userid = userid
-                    existing.oauth_sdk_id = oauth_sdk_id
-                    existing.resolved_at = utcnow()
-                    existing.version += 1
-                else:
-                    s.add(MeetingOAuthUseridMap(
-                        org_id=org_id,
-                        open_id=open_id,
-                        userid=userid,
-                        oauth_sdk_id=oauth_sdk_id,
-                        resolved_at=utcnow(),
-                    ))
-            return userid
 
     async def _fetch_all_pages(self, userid, meeting_id, start_time, end_time):
         files = []

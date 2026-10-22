@@ -1,4 +1,5 @@
 import base64
+from pydantic import SecretStr
 from sqlalchemy import select
 import pytest
 from app.core.errors import MeetingError, UpstreamError
@@ -11,6 +12,15 @@ from test_operations import member_oauth
 
 def _name(text: str) -> str:
     return base64.b64encode(text.encode()).decode()
+
+
+def _enable_env_aksk(rt):
+    rt.settings.tencent_meeting_corp_id = 'corp-env'
+    rt.settings.tencent_meeting_app_id = '33510141629'
+    rt.settings.tencent_meeting_app_secret_id = SecretStr('env-secret-id')
+    rt.settings.tencent_meeting_app_secret_key = SecretStr('env-secret-key')
+    rt.settings.tencent_meeting_app_sdk_id = 'env-sdk'
+    rt.settings.tencent_meeting_app_operator_id = 'admin-userid'
 
 
 async def _oauth_member(rt, human, enterprise_app_body):
@@ -60,13 +70,19 @@ async def test_oauth_users_sync_rejects_aksk(rt, human, enterprise_app_body):
 
 
 async def test_participants_cache_fetch_then_hit(rt, human, enterprise_app_body):
+    _enable_env_aksk(rt)
     c, p = await _oauth_member(rt, human, enterprise_app_body)
-    pages = {'count': 0}
+    pages = {'participants_aksk': 0, 'open_id_to_userid': 0}
 
     def response(operation, kwargs):
-        if operation != 'participants':
+        if operation == 'open_id_to_userid':
+            pages['open_id_to_userid'] += 1
+            return {'userid_list': [{'open_id': 'open-m1', 'userid': 'enterprise-u1'}]}
+        if operation != 'participants_aksk':
             return {}
-        pages['count'] += 1
+        pages['participants_aksk'] += 1
+        assert kwargs.get('userid') == 'enterprise-u1'
+        assert kwargs.get('meeting_id') == 'meet-1'
         query = kwargs.get('query') or {}
         assert query.get('size') == PARTICIPANTS_PAGE_SIZE
         if query.get('pos', 0) == 0:
@@ -90,14 +106,16 @@ async def test_participants_cache_fetch_then_hit(rt, human, enterprise_app_body)
     assert first['participants'][0]['join_name'] == '一'
     assert first['participants'][0]['open_id'] == 'p1'
     assert 'profile' not in first['participants'][0]
-    assert pages['count'] == 2
+    assert pages['participants_aksk'] == 2
+    assert pages['open_id_to_userid'] == 1
 
     second = await rt.participant_cache.list_participants(p, c['id'], 'meet-1', pos=0, size=1)
     assert second['source'] == 'cache'
     assert second['has_remaining'] is True
     assert second['next_pos'] == 1
     assert len(second['participants']) == 1
-    assert pages['count'] == 2
+    assert pages['participants_aksk'] == 2
+    assert pages['open_id_to_userid'] == 1
 
     async with rt.db.session() as s:
         snap = await s.scalar(select(MeetingParticipantSnapshot).where(
@@ -111,10 +129,13 @@ async def test_participants_cache_fetch_then_hit(rt, human, enterprise_app_body)
 
 
 async def test_participants_fetch_failure_leaves_no_rows(rt, human, enterprise_app_body):
+    _enable_env_aksk(rt)
     c, p = await _oauth_member(rt, human, enterprise_app_body)
 
     def response(operation, kwargs):
-        if operation == 'participants':
+        if operation == 'open_id_to_userid':
+            return {'userid_list': [{'open_id': 'open-m1', 'userid': 'enterprise-u1'}]}
+        if operation == 'participants_aksk':
             raise UpstreamError('UPSTREAM_PERMISSION_DENIED')
         return {}
 
@@ -132,6 +153,14 @@ async def test_participants_fetch_failure_leaves_no_rows(rt, human, enterprise_a
 
 
 async def test_participants_rejects_aksk(rt, human, enterprise_app_body):
+    _enable_env_aksk(rt)
     _a, c, p, _sp = await seed(rt, human, enterprise_app_body)
     with pytest.raises(MeetingError, match='PERMISSION_DENIED'):
         await rt.participant_cache.list_participants(p, c['id'], 'meet-x')
+
+
+async def test_participants_missing_env_aksk(rt, human, enterprise_app_body):
+    c, p = await _oauth_member(rt, human, enterprise_app_body)
+    with pytest.raises(MeetingError) as exc:
+        await rt.participant_cache.list_participants(p, c['id'], 'meet-no-aksk')
+    assert exc.value.reason == 'UPSTREAM_CREDENTIAL_INVALID'

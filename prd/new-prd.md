@@ -45,7 +45,7 @@
 
 ## 4. Meeting Gateway 当前可用的腾讯会议查询接口清单
 
-以下为 **Gateway 已实现、可供 AnythingLLM 调用** 的查询类接口（鉴权：Meeting Bearer，`MEMBER` + 相应 `meeting.*` 权限；参会/用户基础信息/录制缓存路径仅 **OAuth 连接**）。  
+以下为 **Gateway 已实现、可供 AnythingLLM 调用** 的查询类接口（鉴权：Meeting Bearer，`MEMBER` + 相应 `meeting.*` 权限；参会/用户基础信息/录制缓存路径网关侧仅 **OAuth 连接**；Q2/R1/R2 上游另走 env AK/SK，见各行说明）。  
 字段细节另见 `docs/participants-oauth-mapping.md`、`docs/record-files-oauth-mapping.md`。Gateway **不**为页面组装 DTO，**不**写入 AnythingLLM。
 
 ### 4.1 会议列表与人员（对应当初 Q1～Q5）
@@ -53,7 +53,7 @@
 | 编号 | 状态 | Gateway 路径 | 腾讯上游 | 说明 |
 | --- | --- | --- | --- | --- |
 | Q1 | **可用** | `POST /api/v1/meeting-queries` | `USER_WINDOW` → `GET /v1/history/meetings/{userid}`；`MEETING_ID` → `GET /v1/meetings/{meeting_id}` | 同步返回会议投影，**不嵌套参会人员**。`CORP_WINDOW` 拒绝（403）。`RECORDINGS` / `USER_RECORDINGS` 走异步 job（202）。 |
-| Q2 | **可用** | `GET /api/v1/connections/{connection_ref}/meetings/{meeting_id}/participants` | [42701 获取参会成员明细](https://cloud.tencent.com/document/product/1095/42701) `GET /v1/meetings/{meeting_id}/participants` | `meeting_id` 为腾讯源会议 ID（与 Q1 的 `meeting_id` 一致）。本地缓存优先；未命中则网关翻页拉全量后全成全败落库再返回。Query：`pos`/`size`（对本地全集分页）。响应含 `open_id`、`join_name`、`is_enterprise_user` 等，**无** `profile`。仅 OAuth。 |
+| Q2 | **可用** | `GET /api/v1/connections/{connection_ref}/meetings/{meeting_id}/participants` | [42701 获取参会成员明细](https://cloud.tencent.com/document/product/1095/42701) `GET /v1/meetings/{meeting_id}/participants`（env AK/SK，无 STS） | `meeting_id` 为腾讯源会议 ID（与 Q1 的 `meeting_id` 一致）。网关侧仍要求本人 OAuth 连接；上游用 env AK/SK，`userid` 由 open_id→企业 userid 映射。本地缓存优先；未命中则网关翻页拉全量后全成全败落库再返回。Query：`pos`/`size`（对本地全集分页）。响应含 `open_id`、`join_name`、`is_enterprise_user` 等，**无** `profile`。 |
 | Q3 | **可用（并入 Q1）** | 同上 `POST /api/v1/meeting-queries`，`selection=MEETING_ID` | `GET /v1/meetings/{meeting_id}` | Q1 投影已含 `meeting_code` / `subject` / `start_at` / `end_at` / `state`；history 行若缺会议号则以上游返回为准，**不再**为人员去补查。另有本地目录 `GET /api/v1/meetings/{local_id}`（catalogue UUID，非腾讯 ID）。 |
 | Q4 | **部分可用** | `POST /api/v1/oauth-users/sync` | [67432 获取用户基本信息](https://cloud.tencent.com/document/product/1095/67432) `GET /v1/users/info/basic`（需 `VIEW_USER_BASIC_INFO`） | Body：`connection_ref` + `open_ids`（去重，上限 50）。可落库：`username`、`open_corp_id`、`open_corp_name`、`status`、`avatar_url`。**无**部门、职位；企业内部身份不以本接口为准。不支持 OAuth 的 [93435 用户详情](https://cloud.tencent.com/document/product/1095/93435)，Gateway **不调用**。与 Q2 解耦，不在参会列表隐式 sync。 |
 | Q5 | **不可用** | — | — | 无部门/组织详情 Gateway 接口；部门名称无法从 Q2/Q4 可靠取得时保存 null。 |

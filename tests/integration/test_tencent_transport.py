@@ -114,6 +114,27 @@ async def test_participants_oauth_path_uses_userid_open_id(rt,human,enterprise_a
     assert 'X-TC-Signature' not in seen[0].headers
 
 
+async def test_participants_aksk_signs_without_sts(rt, human, enterprise_app_body):
+    from pydantic import SecretStr
+    rt.settings.tencent_meeting_corp_id = 'corp-env'
+    rt.settings.tencent_meeting_app_id = '33510141629'
+    rt.settings.tencent_meeting_app_secret_id = SecretStr('env-secret-id')
+    rt.settings.tencent_meeting_app_secret_key = SecretStr('env-secret-key')
+    rt.settings.tencent_meeting_app_sdk_id = 'env-sdk'
+    rt.settings.tencent_meeting_app_operator_id = 'admin-userid'
+    seen = []
+    client = await actual_transport(
+        rt, lambda request: (seen.append(request) or httpx.Response(200, json={'participants': [], 'has_remaining': False})))
+    await client.participants_aksk(
+        meeting_id='mtg-aksk', userid='enterprise-u1', query={'pos': 0, 'size': 20})
+    assert seen[0].url.path == '/v1/meetings/mtg-aksk/participants'
+    assert seen[0].url.params['userid'] == 'enterprise-u1'
+    assert 'operator_id' not in seen[0].url.params
+    assert 'X-TC-Signature' in seen[0].headers
+    assert 'AccessToken' not in seen[0].headers
+    assert 'STS-Token' not in seen[0].headers
+
+
 async def test_user_basic_oauth_path_and_aksk_blocked(rt,human,enterprise_app_body):
     from app.schemas.requests import ApplicationCreate
     from urllib.parse import urlsplit, parse_qs

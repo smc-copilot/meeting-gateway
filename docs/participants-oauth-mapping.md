@@ -7,14 +7,17 @@
 ## 1. 参会名单（本地缓存 + 腾讯 42701）
 
 - 接口：`GET /api/v1/connections/{connection_ref}/meetings/{meeting_id}/participants`
-- 上游：[获取参会成员明细](https://cloud.tencent.com/document/product/1095/42701) — `GET /v1/meetings/{meeting_id}/participants?userid={openId}&pos=&size=`
+- 网关授权：本人 **OAuth 连接** + `meeting.read`（AK/SK 连接拒绝）。
+- 上游：[获取参会成员明细](https://cloud.tencent.com/document/product/1095/42701) — `GET /v1/meetings/{meeting_id}/participants?userid={enterpriseUserId}&pos=&size=`
+- 上游鉴权：**env AK/SK** 签名头（`X-TC-Key` / `X-TC-Signature` / `AppId` / `SdkId`）；**不**使用 OAuth `AccessToken`/`OpenId`；**不**携带 `STS-Token`。
+- `userid`：连接 `external_id`(open_id) 经 `open_id_to_userid` + `meeting_oauth_userid_map` 解析为企业 userid（对齐 R1）。
 - 行为：本地 `meeting_participant_snapshots` / `meeting_participant_rows` 命中则直接返回；未命中则服务端翻页拉全量，**单事务全成全败**落库后再返回。本轮无强制刷新。
 - **不关联** `meeting_oauth_users`，响应无 `profile`。
 
 | 腾讯字段 | 网关字段 | 说明 |
 | --- | --- | --- |
 | `user_name`（Base64） | `participants[].join_name` | 解码失败则为 null |
-| `open_id` / `userid` / `ms_open_id` | 同名回传 + 去重键 | 优先 open_id |
+| `open_id` / `userid` / `ms_open_id` | 同名回传 + 去重键 | 优先 open_id；AK/SK 上游下 open_id 常为空 |
 | `is_enterprise_user` | `is_enterprise_user` | 非布尔则为 null |
 
 响应另含：`source`（`cache` \| `fetched`）、本地分页 `pos` / `size` / `has_remaining` / `next_pos`、`participant_count`。
