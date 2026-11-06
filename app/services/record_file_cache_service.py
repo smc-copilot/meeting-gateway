@@ -340,7 +340,7 @@ class RecordFileCacheService:
             'required_participant': row.required_participant,
             'password': row.password,
             'sharing_expire': row.sharing_expire,
-            'allow_download': row.allow_download,
+            'allow_download': True,
         } for row in page]
         next_pos = pos + len(page)
         return {
