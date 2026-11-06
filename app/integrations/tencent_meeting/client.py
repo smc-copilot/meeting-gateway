@@ -74,7 +74,7 @@ class TencentClient:
             return 'r2'
         if diag in {'participants_aksk', 'participants'}:
             return 'q2'
-        if diag in {'history', 'meeting', 'upcoming'}:
+        if diag in {'history', 'history_aksk', 'meeting', 'meeting_aksk', 'upcoming'}:
             return 'q1'
         return 'r1'
 
@@ -261,6 +261,47 @@ class TencentClient:
         self.rt.metrics['upstream_calls'] += 1
         return await self._send(
             'POST', url, headers, raw, credential_channel=False, write=False, diag='open_id_to_userid')
+
+    async def history_aksk(self, *, userid: str, query: dict, heartbeat=None):
+        material = self._require_env_aksk()
+        if not isinstance(userid, str) or not 1 <= len(userid) <= 128:
+            raise MeetingError('INVALID_REQUEST', 422)
+        allowed = {'start_time', 'end_time', 'page', 'page_size'}
+        params = dict(query or {})
+        if set(params) - allowed:
+            raise MeetingError('INVALID_REQUEST', 422)
+        for key in ('start_time', 'end_time', 'page', 'page_size'):
+            if key not in params:
+                raise MeetingError('INVALID_REQUEST', 422)
+        url = httpx.URL(API_ORIGIN + '/v1/history/meetings/' + _external(userid), params=params)
+        raw = b''
+        headers = self._env_aksk_headers('GET', url.raw_path.decode('ascii'), raw, material)
+        await self.rt.rate.acquire(
+            'tencent-env-aksk:' + material['corp_id'],
+            self.rt.settings.upstream_min_interval_seconds,
+            heartbeat=heartbeat,
+        )
+        self.rt.metrics['upstream_calls'] += 1
+        return await self._send(
+            'GET', url, headers, raw, credential_channel=False, write=False, diag='history_aksk')
+
+    async def meeting_aksk(self, *, meeting_id: str, userid: str, heartbeat=None):
+        material = self._require_env_aksk()
+        if not isinstance(userid, str) or not 1 <= len(userid) <= 128:
+            raise MeetingError('INVALID_REQUEST', 422)
+        _external(meeting_id)
+        params = {'userid': userid, 'instanceid': 1}
+        url = httpx.URL(API_ORIGIN + '/v1/meetings/' + _external(meeting_id), params=params)
+        raw = b''
+        headers = self._env_aksk_headers('GET', url.raw_path.decode('ascii'), raw, material)
+        await self.rt.rate.acquire(
+            'tencent-env-aksk:' + material['corp_id'],
+            self.rt.settings.upstream_min_interval_seconds,
+            heartbeat=heartbeat,
+        )
+        self.rt.metrics['upstream_calls'] += 1
+        return await self._send(
+            'GET', url, headers, raw, credential_channel=False, write=False, diag='meeting_aksk')
 
     async def records_aksk(self, *, query: dict, heartbeat=None):
         material = self._require_env_aksk()

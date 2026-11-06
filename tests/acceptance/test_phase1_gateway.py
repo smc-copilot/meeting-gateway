@@ -68,6 +68,14 @@ async def test_meeting_id_miss_does_not_store_subject(rt, human, enterprise_app_
     async with rt.db.session() as s:
         before = await s.scalar(select(func.count()).select_from(Meeting))
         jobs_before = await s.scalar(select(func.count()).select_from(SyncJob))
+
+    def response(operation, kwargs):
+        if operation == 'open_id_to_userid':
+            open_id = kwargs['open_id']
+            return {'userid_list': [{'open_id': open_id, 'userid': 'user-' + open_id}]}
+        return {'meeting_info_list': [], 'total_page': 0}
+
+    rt._provider.response = response
     with pytest.raises(MeetingError, match="RESOURCE_NOT_ACCESSIBLE"):
         await rt.queries.submit(p, MeetingQuery(selection="MEETING_ID", connection_ref=c["id"], meeting_id="missing-9"))
     async with rt.db.session() as s:
@@ -75,7 +83,8 @@ async def test_meeting_id_miss_does_not_store_subject(rt, human, enterprise_app_
         leaked = await s.scalar(select(Meeting).where(Meeting.subject == "missing-9"))
         jobs_after = await s.scalar(select(func.count()).select_from(SyncJob))
     assert after == before and leaked is None and jobs_after == jobs_before
-    assert any(item[1] == "meeting" for item in rt.tencent.calls)
+    assert any(item[1] == "meeting_aksk" for item in rt.tencent.calls)
+    assert not any(item[1] == "meeting" for item in rt.tencent.calls)
 
 
 async def test_stale_detail_defaults_to_ensure(rt, human, enterprise_app_body):

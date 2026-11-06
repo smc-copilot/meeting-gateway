@@ -8,6 +8,7 @@ from app.integrations.tencent_meeting.mapper import milliseconds, seconds
 from app.models import SyncJob
 from app.schemas.requests import MeetingQuery
 from app.services.audit_service import record
+from app.services.oauth_userid_map_service import OAuthUseridMapService
 from app.services.sync_service import windows
 
 logger = logging.getLogger(__name__)
@@ -152,9 +153,20 @@ class QueryService:
             'connection_ref': connection.id,
         }
 
+    async def _subject_userid(self, connection, operator):
+        if connection.kind == 'THIRD_PARTY_OAUTH':
+            return await OAuthUseridMapService(self.rt).resolve_userid(connection, log_prefix='q1')
+        return operator.id
+
     async def _fetch_meeting(self, connection, operator, meeting_id, *, heartbeat=None, raw=False):
+        userid = await self._subject_userid(connection, operator) if connection.kind == 'THIRD_PARTY_OAUTH' else None
         try:
-            payload = await self.rt.tencent.call(connection.id, 'meeting', operator, file_id=meeting_id, heartbeat=heartbeat)
+            if connection.kind == 'THIRD_PARTY_OAUTH':
+                payload = await self.rt.tencent.meeting_aksk(
+                    meeting_id=meeting_id, userid=userid, heartbeat=heartbeat)
+            else:
+                payload = await self.rt.tencent.call(
+                    connection.id, 'meeting', operator, file_id=meeting_id, heartbeat=heartbeat)
         except MeetingError as exc:
             if exc.reason == 'RESOURCE_NOT_ACCESSIBLE':
                 raise
@@ -178,12 +190,18 @@ class QueryService:
     async def _scan_history(self, connection, operator, body, heartbeat=None):
         seen = set()
         found = []
+        userid = await self._subject_userid(connection, operator)
         intervals = list(windows(body.start_at, body.end_at, 90))
         for begin, stop in intervals:
             page = 1
             while page <= 100000:
-                payload = await self.rt.tencent.call(connection.id, 'history', operator, query={
-                    'start_time': begin, 'end_time': stop, 'page': page, 'page_size': 20}, heartbeat=heartbeat)
+                query = {'start_time': begin, 'end_time': stop, 'page': page, 'page_size': 20}
+                if connection.kind == 'THIRD_PARTY_OAUTH':
+                    payload = await self.rt.tencent.history_aksk(
+                        userid=userid, query=query, heartbeat=heartbeat)
+                else:
+                    payload = await self.rt.tencent.call(
+                        connection.id, 'history', operator, query=query, heartbeat=heartbeat)
                 items = payload.get('meeting_info_list') if isinstance(payload, dict) else None
                 total = payload.get('total_page') if isinstance(payload, dict) else None
                 if not isinstance(items, list) or not isinstance(total, int):
@@ -230,10 +248,20 @@ class QueryService:
             end = start + 60
         page = 1
         found = 0
+        userid = await self._subject_userid(connection, operator)
         while page <= 100000:
-            raw = await self.rt.tencent.call(connection.id, 'records', operator, query={
-                'start_time': start, 'end_time': end, 'page': page, 'page_size': 20, 'meeting_id': body.meeting_id},
-                heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token))
+            query = {
+                'start_time': start, 'end_time': end, 'page': page, 'page_size': 20,
+                'meeting_id': body.meeting_id,
+            }
+            if connection.kind == 'THIRD_PARTY_OAUTH':
+                raw = await self.rt.tencent.records_aksk(
+                    query={**query, 'userid': userid},
+                    heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token))
+            else:
+                raw = await self.rt.tencent.call(
+                    connection.id, 'records', operator, query=query,
+                    heartbeat=lambda: self.rt.jobs.heartbeat(job.id, lease_token))
             rows = raw.get('record_meetings') if isinstance(raw, dict) else None
             total = raw.get('total_page') if isinstance(raw, dict) else None
             if not isinstance(rows, list) or not isinstance(total, int):

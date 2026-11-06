@@ -26,7 +26,9 @@ async def test_user_window_has_no_participants_fields(rt, human, enterprise_app_
     end = utcnow()
 
     def response(operation, kwargs):
-        if operation == 'history':
+        if operation == 'open_id_to_userid':
+            return {'userid_list': [{'open_id': 'open-m1', 'userid': 'user-m1'}]}
+        if operation == 'history_aksk':
             return {
                 'meeting_info_list': [{
                     'meeting_id': 'up-1', 'subject': '示例会议', 'meeting_code': '012345678',
@@ -50,13 +52,18 @@ async def test_user_window_has_no_participants_fields(rt, human, enterprise_app_
     assert 'participants_reason' not in item
     assert not any(call[1] == 'participants' for call in rt.tencent.calls)
     assert not any(call[1] == 'user_basic' for call in rt.tencent.calls)
+    assert not any(call[1] == 'history' for call in rt.tencent.calls)
+    history = [call for call in rt.tencent.calls if call[1] == 'history_aksk']
+    assert history and history[0][3]['userid'] == 'user-m1'
 
 
 async def test_meeting_id_selection_projection_only(rt, human, enterprise_app_body):
     c, p = await _member(rt, human, enterprise_app_body, oauth=True)
 
     def response(operation, kwargs):
-        if operation == 'meeting':
+        if operation == 'open_id_to_userid':
+            return {'userid_list': [{'open_id': 'open-m1', 'userid': 'user-m1'}]}
+        if operation == 'meeting_aksk':
             return {'meeting_info_list': [{
                 'meeting_id': 'up-detail', 'subject': '单场', 'meeting_code': '814808046',
                 'status': 'ENDED',
@@ -70,3 +77,6 @@ async def test_meeting_id_selection_projection_only(rt, human, enterprise_app_bo
     assert item['meeting_code'] == '814808046'
     assert 'participants' not in item
     assert not any(call[1] == 'participants' for call in rt.tencent.calls)
+    assert not any(call[1] == 'meeting' for call in rt.tencent.calls)
+    detail = [call for call in rt.tencent.calls if call[1] == 'meeting_aksk']
+    assert detail and detail[0][3]['userid'] == 'user-m1' and detail[0][3]['meeting_id'] == 'up-detail'
