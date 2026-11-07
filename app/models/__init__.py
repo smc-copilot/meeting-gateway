@@ -10,3 +10,4 @@ from app.models.oauth_userid_map import MeetingOAuthUseridMap
 from app.models.env_sts_token import MeetingEnvStsToken
 from app.models.participant_cache import MeetingParticipantSnapshot, MeetingParticipantRow
 from app.models.record_file_cache import MeetingRecordFileSnapshot, MeetingRecordFileRow
+from app.models.directory_user import MeetingDirectoryUser, MeetingDirectorySyncState

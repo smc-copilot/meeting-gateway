@@ -5,7 +5,7 @@ from app.api.deps import business,runtime,envelope
 from app.core.errors import MeetingError
 from fastapi.responses import JSONResponse
 from app.schemas.requests import (MeetingCreate,SyncRequest,DownloadRequest,MeetingQuery,OAuthUsersSync,
-                                  OperationConfirm,OperationReject,OAuthSession)
+                                  DirectoryUserUpdate,OperationConfirm,OperationReject,OAuthSession)
 from app.services.portal_service import PortalService
 from app.authorization.router import client_auth,throttle
 
@@ -45,6 +45,19 @@ async def meeting_queries(request:Request,body:MeetingQuery,p=Depends(business))
 @router.post('/oauth-users/sync')
 async def oauth_users_sync(request:Request,body:OAuthUsersSync,p=Depends(business)):
     return envelope(request,await runtime(request).oauth_users.sync(p,body))
+
+@router.post('/users/sync')
+async def users_sync(request:Request,type:str|None=Query(None),p=Depends(business)):
+    if type not in {None, 'all'}:
+        raise MeetingError('INVALID_REQUEST', 422)
+    return envelope(request,await runtime(request).directory_users.sync(p, full=type == 'all'))
+
+@router.post('/users/{userid}/update')
+async def users_update(request:Request,userid:str,body:DirectoryUserUpdate,p=Depends(business)):
+    if not userid or len(userid) > 128:
+        raise MeetingError('INVALID_REQUEST', 422)
+    return envelope(request,await runtime(request).directory_users.update(
+        p, userid, body.model_dump(exclude_unset=True)))
 
 @router.get('/connections/{connection_ref}/meetings/{meeting_id}/participants')
 async def meeting_participants(request:Request,connection_ref:str,meeting_id:str,

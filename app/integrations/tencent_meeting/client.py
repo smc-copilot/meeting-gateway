@@ -76,6 +76,8 @@ class TencentClient:
             return 'q2'
         if diag in {'history', 'history_aksk', 'meeting', 'meeting_aksk', 'upcoming'}:
             return 'q1'
+        if diag == 'users_list':
+            return 'u1'
         return 'r1'
 
     async def _send(self,method,url,headers,body,*,envelope=False,credential_channel=False,write=False,diag=None):
@@ -302,6 +304,28 @@ class TencentClient:
         self.rt.metrics['upstream_calls'] += 1
         return await self._send(
             'GET', url, headers, raw, credential_channel=False, write=False, diag='meeting_aksk')
+
+    async def users_list(self, *, page: int, page_size: int = 20, heartbeat=None):
+        material = self._require_env_aksk()
+        if page < 1 or page_size != 20:
+            raise MeetingError('INVALID_REQUEST', 422)
+        params = {
+            'operator_id': material['operator_id'],
+            'operator_id_type': 1,
+            'page': page,
+            'page_size': page_size,
+        }
+        url = httpx.URL(API_ORIGIN + '/v1/users/list', params=params)
+        raw = b''
+        headers = self._env_aksk_headers('GET', url.raw_path.decode('ascii'), raw, material)
+        await self.rt.rate.acquire(
+            'tencent-env-aksk:' + material['corp_id'],
+            self.rt.settings.upstream_min_interval_seconds,
+            heartbeat=heartbeat,
+        )
+        self.rt.metrics['upstream_calls'] += 1
+        return await self._send(
+            'GET', url, headers, raw, credential_channel=False, write=False, diag='users_list')
 
     async def records_aksk(self, *, query: dict, heartbeat=None):
         material = self._require_env_aksk()

@@ -61,6 +61,10 @@ class Runtime:
         from app.services.oauth_users_service import OAuthUsersService
         return OAuthUsersService(self)
     @cached_property
+    def directory_users(self):
+        from app.services.directory_user_service import DirectoryUserService
+        return DirectoryUserService(self)
+    @cached_property
     def participant_cache(self):
         from app.services.participant_cache_service import ParticipantCacheService
         return ParticipantCacheService(self)

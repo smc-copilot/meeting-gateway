@@ -128,6 +128,31 @@ class OAuthUsersSync(StrictModel):
         return cleaned
 
 
+class DirectoryUserUpdate(StrictModel):
+    area: str | None = Field(None, max_length=16)
+    update_time: str | None = Field(None, max_length=32)
+    avatar_url: str | None = Field(None, max_length=1024)
+    phone: str | None = Field(None, max_length=32)
+    email: str | None = Field(None, max_length=256)
+    status: str | None = Field(None, max_length=32)
+    job_title: str | None = Field(None, max_length=128)
+    staff_id: str | None = Field(None, max_length=128)
+    entry_time: str | None = Field(None, max_length=32)
+    role_name: str | None = Field(None, max_length=64)
+    role_code: str | None = Field(None, max_length=64)
+    department_list: list | None = None
+    user_account_type: int | None = None
+    account_version: int | None = None
+    enable_ai_account: bool | None = None
+    ai_account_type: int | None = None
+    phone_status: int | None = None
+    add_on_largemeeting: int | None = None
+    add_on_webinar: int | None = None
+    email_status: int | None = None
+    is_voov: int | None = None
+    allow_login_terminal: list | None = None
+
+
 class OperationConfirm(StrictModel):
     request_hash: str = Field(min_length=64, max_length=64)
 
