@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     meeting_component_id: str = ""
     meeting_org_id: str = ""
     meeting_bootstrap_admin_user_ids: list[str] = Field(default_factory=list)
-    auth_session_ttl_seconds: int = Field(900, ge=60, le=3600)
+    # Align with Tencent OAuth refresh window (~30d); access token is capped separately below.
+    auth_session_ttl_seconds: int = Field(2592000, ge=60, le=2592000)
     auth_admin_fresh_seconds: int = Field(300, ge=30, le=300)
     account_login_allow_private_http: bool = False
     tencent_meeting_auth_mode: Literal["oauth"] = "oauth"
@@ -70,8 +71,9 @@ class Settings(BaseSettings):
     meeting_corp_sync_enabled: bool = False
     meeting_media_download_enabled: bool = False
     meeting_auto_record_enabled: bool = False
-    access_token_seconds: int = Field(900, ge=60, le=3600)
-    refresh_token_seconds: int = Field(604800, ge=60, le=604800)
+    # Align with Tencent OAuth access_token (~6h) and refresh_token (~30d).
+    access_token_seconds: int = Field(21600, ge=60, le=21600)
+    refresh_token_seconds: int = Field(2592000, ge=60, le=2592000)
     auth_code_seconds: int = Field(60, ge=15, le=120)
     upstream_state_seconds: int = Field(300, ge=60, le=600)
     confirmation_seconds: int = Field(600, ge=30, le=3600)
