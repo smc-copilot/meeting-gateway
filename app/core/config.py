@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     tencent_meeting_sts_refresh_margin_seconds: int = Field(3600, ge=60, le=86400)
     tencent_meeting_allowed_open_corp_ids: list[str] = Field(default_factory=list)
     tencent_meeting_oauth_return_uris: list[str] = Field(default_factory=list)
+    # Public oauth continue_to may use http in production only for these host suffixes
+    # (exact host or subdomain). Example: meeting.smart-core.com.hk matches smart-core.com.hk.
+    oauth_continue_http_host_suffixes: list[str] = Field(
+        default_factory=lambda: ["superic.com", "smart-core.com.hk"])
     tencent_meeting_webhook_name: str = ""
     tencent_meeting_webhook_encoding_aes_key: SecretStr = Field(
         default=SecretStr(""),

@@ -135,6 +135,13 @@ class ConnectionService:
             result.update({'transaction_id':tx.id,'expires_at':tx.expires_at})
             return result
 
+    def _http_continue_host_allowed(self,host:str)->bool:
+        suffixes=[str(s).strip().lower() for s in (self.rt.settings.oauth_continue_http_host_suffixes or []) if str(s).strip()]
+        for suffix in suffixes:
+            if host==suffix or host.endswith('.'+suffix):
+                return True
+        return False
+
     def _valid_continue_to(self,value):
         if not value or not isinstance(value,str) or len(value)>2048:
             return False
@@ -146,7 +153,7 @@ class ConnectionService:
         if host in {'localhost','127.0.0.1','::1'}:
             return True
         if self.rt.settings.environment=='production' and parsed.scheme!='https':
-            return False
+            return self._http_continue_host_allowed(host)
         return True
 
     async def oauth_start_public(self,application_id='',continue_to=None,*,client_host=''):

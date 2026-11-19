@@ -203,6 +203,28 @@ async def test_continue_to_allows_http_localhost_in_production(bootstrap_rt):
         bootstrap_rt.settings.environment = original
 
 
+async def test_continue_to_allows_http_org_suffixes_in_production(bootstrap_rt):
+    original = bootstrap_rt.settings.environment
+    suffixes = list(bootstrap_rt.settings.oauth_continue_http_host_suffixes)
+    bootstrap_rt.settings.environment = "production"
+    bootstrap_rt.settings.oauth_continue_http_host_suffixes = ["superic.com", "smart-core.com.hk"]
+    try:
+        assert bootstrap_rt.connections._valid_continue_to(
+            "http://meeting.smart-core.com.hk:13000/meetings/done?flow_nonce=x")
+        assert bootstrap_rt.connections._valid_continue_to("http://sso.superic.com:8990/meeting/done")
+        assert bootstrap_rt.connections._valid_continue_to("http://superic.com/")
+        assert bootstrap_rt.connections._valid_continue_to("https://meeting.smart-core.com.hk:13000/x")
+        assert not bootstrap_rt.connections._valid_continue_to("http://evil-smart-core.com.hk/cb")
+        assert not bootstrap_rt.connections._valid_continue_to("http://notsuperic.com/cb")
+        assert not bootstrap_rt.connections._valid_continue_to("http://evil.example.org/cb")
+        started = await bootstrap_rt.connections.oauth_start_public(
+            "", "http://meeting.smart-core.com.hk:13000/meetings/done", client_host="127.0.0.1")
+        assert started["authorization_url"].startswith("https://meeting.tencent.com/")
+    finally:
+        bootstrap_rt.settings.environment = original
+        bootstrap_rt.settings.oauth_continue_http_host_suffixes = suffixes
+
+
 async def test_oauth_start_rejects_invalid_continue_to(bootstrap_rt):
     with pytest.raises(MeetingError) as exc:
         await bootstrap_rt.connections.oauth_start_public(
